@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* 1. Reset and Scroll Settings */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  /* CRITICAL: Ensure scrolling is allowed */
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  background-color: #ffffff !important;
+  font-family: 'Inter', 'Jost', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 2. Professional Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a237e; /* Indigo Blue */
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00bcd4; /* Cyan Accent */
+}
+
+/* 3. Global Utilities */
+a, button {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Loading Animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

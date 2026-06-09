@@ -1,0 +1,47 @@
+:root {
+  --babai-blue: #1a237e;
+  --babai-cyan: #00bcd4;
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --bg-light: #f9fafb;
+  --white: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', 'Jost', sans-serif;
+  background-color: var(--white) !important;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Standardizing Image sizes */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Helper for the Product Grids */
+.ProductGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .ProductGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
