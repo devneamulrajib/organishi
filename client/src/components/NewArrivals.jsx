@@ -6,11 +6,8 @@ import API, { BASE_URL } from '../api';
 /* ── Utility: strip accidental BASE_URL prefix from Cloudinary / absolute URLs ── */
 function cleanImageUrl(url) {
   if (!url) return url;
-  // If it's already a full URL (starts with http/https), return as-is
   if (/^https?:\/\//i.test(url)) return url;
-  // If it starts with //, return as-is (protocol-relative)
   if (url.startsWith('//')) return url;
-  // Otherwise it's a relative path — prepend BASE_URL
   return `${BASE_URL}${url}`;
 }
 
@@ -18,18 +15,17 @@ function cleanImageUrl(url) {
 function sanitizeProduct(p) {
   return {
     ...p,
-    // handle both `image` and `images` array patterns
-    image:  cleanImageUrl(p.image),
-    images: Array.isArray(p.images) ? p.images.map(cleanImageUrl) : p.images,
+    image:    cleanImageUrl(p.image),
+    images:   Array.isArray(p.images) ? p.images.map(cleanImageUrl) : p.images,
     imageUrl: cleanImageUrl(p.imageUrl),
   };
 }
 
 export default function NewArrivals() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const scrollRef = useRef(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [products, setProducts]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const scrollRef                       = useRef(null);
+  const [canScrollLeft, setCanScrollLeft]   = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
@@ -37,7 +33,6 @@ export default function NewArrivals() {
       .then((res) => {
         const data = res.data;
         const list = Array.isArray(data) ? data : (data.products || []);
-        // Sanitize all image URLs before storing
         setProducts(list.map(sanitizeProduct));
         setLoading(false);
       })
@@ -65,7 +60,7 @@ export default function NewArrivals() {
   return (
     <section style={{
       position: "relative",
-      padding: "80px 0 90px",
+      padding: "28px 0 32px",        /* ← was 80px 0 90px — now compact */
       background: "#ffffff",
       borderTop: "1px solid #f0f0f0",
       overflow: "hidden",
@@ -160,7 +155,7 @@ export default function NewArrivals() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 40,
+            marginBottom: 20,          /* ← was 40 */
             flexWrap: "wrap",
             gap: 14,
           }}
@@ -287,11 +282,6 @@ export default function NewArrivals() {
                   }}>
                     NEW
                   </div>
-                  {/*
-                    Pass the sanitized product — image URLs are already cleaned.
-                    ProductCard should use product.image / product.images directly,
-                    NOT prepend BASE_URL again.
-                  */}
                   <ProductCard
                     product={product}
                     index={i}
