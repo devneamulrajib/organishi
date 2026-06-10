@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
-
-const API = 'http://localhost:5000';
+// Import our smart API instance and the BASE_URL for images
+import API, { BASE_URL } from '../api'; 
 
 const TINTS = [
   '#FFF4EC', '#ECFDF5', '#EEF2FF', '#FDF2F8',
@@ -146,7 +145,7 @@ function CatItem({ cat, index, isHovered, onHover }) {
 
         {cat.imageUrl ? (
           <motion.img
-            src={`${API}${cat.imageUrl}`}
+            src={`${BASE_URL}${cat.imageUrl}`}
             alt={cat.name}
             animate={{ scale: isHovered ? 1.12 : 1 }}
             transition={{ type: 'spring', stiffness: 320, damping: 22 }}
@@ -251,9 +250,9 @@ export default function FeaturedCategories() {
   const trackRef = useRef(null);
 
   useEffect(() => {
-    axios.get(`${API}/api/categories`)
+    // Using smart API instance
+    API.get('/categories')
       .then(r => {
-        // /api/categories returns a plain array; guard against paginated shape just in case
         const list = Array.isArray(r.data) ? r.data : (r.data.products || []);
         setCategories(list);
         setStatus(list.length ? 'ok' : 'empty');
@@ -344,7 +343,7 @@ export default function FeaturedCategories() {
                       onHover={setHoveredIdx}
                     />
                   ))}
-                  {/* Fill empty slots so layout stays stable */}
+                  {/* Fill empty slots */}
                   {visible.length < VISIBLE && Array.from({ length: VISIBLE - visible.length }).map((_, i) => (
                     <div key={`empty-${i}`} style={{ width: 120, flexShrink: 0 }} />
                   ))}

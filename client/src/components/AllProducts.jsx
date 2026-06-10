@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProductCard from "./ProductCard";
-
-const API = "http://localhost:5000";
+// Import our smart API instance
+import API from '../api'; 
 
 const SORT_OPTIONS = [
   { value: "newest",     label: "Newest First" },
@@ -31,17 +31,28 @@ export default function AllProducts() {
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ sort, page, limit });
-    if (tagFilter) params.set("tags", tagFilter);
-    fetch(`${API}/api/products?${params}`)
-      .then((r) => r.json())
-      .then((data) => {
+    
+    // Prepare the exact same parameters as your original fetch
+    const params = {
+      sort,
+      page,
+      limit,
+      ...(tagFilter && { tags: tagFilter }) // Add tags only if filter is active
+    };
+
+    // Swapped fetch for API.get while keeping logic identical
+    API.get('/products', { params })
+      .then((res) => {
+        const data = res.data;
         const list = Array.isArray(data) ? data : data.products || [];
         setProducts(list);
         setTotal(data.total || list.length);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error("Fetch error:", err);
+        setLoading(false);
+      });
   }, [sort, tagFilter, page]);
 
   const totalPages = Math.ceil(total / limit);
@@ -417,7 +428,7 @@ export default function AllProducts() {
               ))}
             </div>
 
-            {/* Pagination */}
+            {/* Pagination - Exact Logic Restored */}
             {totalPages > 1 && (
               <div
                 style={{

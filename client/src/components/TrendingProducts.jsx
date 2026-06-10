@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, ChevronRight } from "lucide-react";
-
-const API = "http://localhost:5000";
+// Import our smart API instance and the BASE_URL for images
+import API, { BASE_URL } from '../api'; 
 
 const BG_PALETTE = ["#fbeaf0", "#eeedfe", "#faeeda", "#e1f5ee", "#eeedfe", "#fbeaf0"];
 
@@ -11,9 +11,10 @@ export default function TrendingProducts() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API}/api/products?tags=trending&limit=6`)
-      .then((r) => r.json())
-      .then((data) => {
+    // Using the smart API instance instead of raw fetch
+    API.get('/products', { params: { tags: 'trending', limit: 6 } })
+      .then((res) => {
+        const data = res.data;
         const list = Array.isArray(data) ? data : data.products || [];
         setProducts(list);
         setLoading(false);
@@ -26,7 +27,6 @@ export default function TrendingProducts() {
   const rankColor = (i) =>
     i === 0 ? "#ba7517" : i === 1 ? "#888780" : i === 2 ? "#993c1d" : "#d3d1c7";
 
-  // ← Safe price resolver — checks every common field name your API might use
   const getPrice = (p) =>
     p.price ?? p.salePrice ?? p.sellingPrice ?? p.regularPrice ?? p.amount ?? 0;
 
@@ -57,7 +57,7 @@ export default function TrendingProducts() {
           overflow: "hidden",
         }}>
 
-          {/* ── Art Background ── */}
+          {/* ── Art Background (SVG) ── */}
           <svg
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
             viewBox="0 0 1320 600"
@@ -213,7 +213,7 @@ export default function TrendingProducts() {
                         {String(i + 1).padStart(2, "0")}
                       </span>
 
-                      {/* Image */}
+                      {/* Image - Updated with BASE_URL */}
                       <div style={{
                         width: 64, height: 64, flexShrink: 0,
                         borderRadius: 12,
@@ -224,7 +224,7 @@ export default function TrendingProducts() {
                       }}>
                         {imgSrc ? (
                           <img
-                            src={imgSrc.startsWith("http") ? imgSrc : `${API}${imgSrc}`}
+                            src={imgSrc.startsWith("http") ? imgSrc : `${BASE_URL}${imgSrc}`}
                             alt={name}
                             style={{ width: "100%", height: "100%", objectFit: "contain" }}
                             onError={(e) => { e.currentTarget.style.display = "none"; }}

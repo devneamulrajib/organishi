@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import ProductCard from "./ProductCard";
-
-const API = "http://localhost:5000";
+// Import our smart API instance
+import API from '../api'; 
 
 export default function NewArrivals() {
   const [products, setProducts] = useState([]);
@@ -12,9 +12,10 @@ export default function NewArrivals() {
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/api/products?tags=new&limit=8`)
-      .then((r) => r.json())
-      .then((data) => {
+    // Using smart API instance instead of raw fetch
+    API.get('/products', { params: { tags: 'new', limit: 8 } })
+      .then((res) => {
+        const data = res.data;
         const list = Array.isArray(data) ? data : data.products || [];
         setProducts(list);
         setLoading(false);

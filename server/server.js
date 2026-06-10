@@ -12,7 +12,14 @@ const jwt       = require('jsonwebtoken');
 const HomepageConfig = require('./models/HomepageConfig');
 
 const app = express();
-app.use(cors());
+
+// --- ADJUSTED CORS FOR PRODUCTION & LOCAL ---
+app.use(cors({
+  origin: '*', // This allows both your localhost and your Vercel domain to talk to this server
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 const uploadDir = path.join(__dirname, 'uploads');
@@ -73,7 +80,7 @@ const PinnedCategory = mongoose.model('PinnedCategory', new mongoose.Schema({
   order:        { type: Number, default: 0 },
 }));
 
-// ── NEW: Promo Banner Model ──────────────────────────────────────
+// ── Promo Banner Model ──────────────────────────────────────
 const PromoBanner = mongoose.model('PromoBanner', new mongoose.Schema({
   mediaUrl:  String,
   mediaType: { type: String, enum: ['image', 'video'], default: 'image' },
@@ -316,19 +323,16 @@ app.post('/api/homepage/pinned-categories', auth, async (req, res) => {
 });
 
 // ── Promo Banner Routes ──────────────────────────────────────────
-// Public: returns all active promo banners (frontend uses the first one)
 app.get('/api/promo-banners', async (req, res) => {
   try { res.json(await PromoBanner.find({ active: true }).sort({ createdAt: -1 })); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Admin: returns ALL banners (active + hidden)
 app.get('/api/promo-banners/all', auth, async (req, res) => {
   try { res.json(await PromoBanner.find().sort({ createdAt: -1 })); }
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Admin: upload a new banner
 app.post('/api/promo-banners', auth, upload.single('media'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No media file uploaded' });
@@ -343,7 +347,6 @@ app.post('/api/promo-banners', auth, upload.single('media'), async (req, res) =>
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Admin: update an existing banner (optionally replace media)
 app.put('/api/promo-banners/:id', auth, upload.single('media'), async (req, res) => {
   try {
     const update = {
@@ -360,7 +363,6 @@ app.put('/api/promo-banners/:id', auth, upload.single('media'), async (req, res)
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Admin: delete a banner
 app.delete('/api/promo-banners/:id', auth, async (req, res) => {
   try { await PromoBanner.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted' }); }
   catch (err) { res.status(500).json({ error: err.message }); }
@@ -381,17 +383,26 @@ app.post('/api/auth/login', async (req, res) => {
 // ── Start ─────────────────────────────────────────────────────────
 const start = async () => {
   try {
+    // Make sure process.env.MONGO_URI is set in your .env file locally
+    // AND in the Render Environment Dashboard for production
     await mongoose.connect(process.env.MONGO_URI);
     console.log('✅ MongoDB connected');
+
     const exists = await User.findOne({ username: process.env.ADMIN_USERNAME || 'admin' });
     if (!exists) {
       const hash = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
       await User.create({ username: process.env.ADMIN_USERNAME || 'admin', password: hash });
       console.log('👤 Admin user created');
     }
-    app.listen(process.env.PORT || 5000, () =>
-      console.log(`🚀 Server running on http://localhost:${process.env.PORT || 5000}`)
+
+    // This handles the Port for Render (process.env.PORT) and Local (5000)
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT}`)
     );
-  } catch (err) { console.error('❌ Startup error:', err.message); process.exit(1); }
+  } catch (err) { 
+    console.error('❌ Startup error:', err.message); 
+    process.exit(1); 
+  }
 };
 start();

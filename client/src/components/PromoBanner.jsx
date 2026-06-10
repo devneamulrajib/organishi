@@ -1,33 +1,37 @@
 import { useState, useEffect } from 'react';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Import our smart API instance and the BASE_URL for images/videos
+import API, { BASE_URL } from '../api'; 
 
 /**
  * PromoBanner
  * Full-width promotional banner — matches the style of the reference site.
  * Accepts either a single `banner` object prop (from homepage config)
  * or fetches the latest active banner automatically.
- *
- * Props:
- *   banner  — optional: { mediaUrl, mediaType, link } (passed from HomePage)
- *   style   — optional extra styles on the wrapper
  */
 export default function PromoBanner({ banner: bannerProp, style }) {
   const [banner, setBanner] = useState(bannerProp || null);
 
   useEffect(() => {
-    if (bannerProp) { setBanner(bannerProp); return; }
-    fetch(`${API}/api/promo-banners`)
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data) && data.length > 0) setBanner(data[0]); })
+    if (bannerProp) { 
+      setBanner(bannerProp); 
+      return; 
+    }
+    
+    // Using the smart API instance instead of raw fetch
+    API.get('/promo-banners')
+      .then(res => { 
+        const data = res.data;
+        if (Array.isArray(data) && data.length > 0) setBanner(data[0]); 
+      })
       .catch(() => {});
   }, [bannerProp]);
 
   if (!banner?.mediaUrl) return null;
 
+  // Updated to use BASE_URL for both video and image sources
   const inner = banner.mediaType === 'video' ? (
     <video
-      src={`${API}${banner.mediaUrl}`}
+      src={`${BASE_URL}${banner.mediaUrl}`}
       autoPlay
       loop
       muted
@@ -36,7 +40,7 @@ export default function PromoBanner({ banner: bannerProp, style }) {
     />
   ) : (
     <img
-      src={`${API}${banner.mediaUrl}`}
+      src={`${BASE_URL}${banner.mediaUrl}`}
       alt="Promotional banner"
       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
     />

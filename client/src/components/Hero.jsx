@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+// Import our smart API instance and the BASE_URL for images/videos
+import API, { BASE_URL } from '../api'; 
 import { ChevronLeft, ChevronRight, MousePointer2 } from 'lucide-react';
 
-const API = 'http://localhost:5000';
 const SLIDE_DURATION = 6000;
 
 export default function Hero() {
@@ -16,8 +16,12 @@ export default function Hero() {
   const startRef = useRef(null);
 
   useEffect(() => {
-    axios.get(`${API}/api/hero-slides`)
-      .then(r => { setSlides(r.data); setStatus(r.data.length ? 'ok' : 'empty'); })
+    // Use the smart API instance instead of raw axios
+    API.get('/hero-slides')
+      .then(r => { 
+        setSlides(r.data); 
+        setStatus(r.data.length ? 'ok' : 'empty'); 
+      })
       .catch(() => setStatus('error'));
   }, []);
 
@@ -60,18 +64,22 @@ export default function Hero() {
     title: 'Fresh & Organic Daily',
     subtitle: 'WELCOME TO BABAI BANGLADESH',
     ctaText: 'SHOP NOW',
-    mediaUrl: '/uploads/hero-placeholder.jpg', // Ensure this exists or use a web link
+    mediaUrl: '/uploads/hero-placeholder.jpg', 
     mediaType: 'image'
   };
 
   const activeSlides = slides.length ? slides : [defaultSlide];
   const slide = activeSlides[current];
-  const src = slide._id === 'default' ? "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1974" : `${API}${slide.mediaUrl}`;
+  
+  // Updated source to use BASE_URL for database items
+  const src = slide._id === 'default' 
+    ? "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1974" 
+    : `${BASE_URL}${slide.mediaUrl}`;
 
   return (
     <section style={{
       position: 'relative',
-      height: '85vh', // Slightly less than full screen to hint at content below
+      height: '85vh', 
       width: '100%',
       overflow: 'hidden',
       background: '#000',
@@ -155,7 +163,7 @@ export default function Hero() {
         </button>
       </div>
 
-      {/* Scroll Down Hint (Matches Babai Design) */}
+      {/* Scroll Down Hint */}
       <div className="scroll-indicator" style={{ position: 'absolute', bottom: 30, left: '50%', transform: 'translateX(-50%)', color: '#fff', textAlign: 'center', opacity: 0.7 }}>
         <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '2px', marginBottom: '5px' }}>SCROLL</div>
         <MousePointer2 size={20} />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import API from './api';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -9,7 +9,7 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', data);
+      const response = await API.post('/auth/login', { username, password });
       localStorage.setItem('token', res.data.token);
       navigate('/admin'); // Goes to dashboard after success
     } catch (err) {

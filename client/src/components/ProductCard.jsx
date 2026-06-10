@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const API = "http://localhost:5000";
+// Importing the smart URL that switches between local and production automatically
+import { BASE_URL } from '../api'; 
 
 export default function ProductCard({ product, index = 0, badge }) {
   const [hovered, setHovered] = useState(false);
@@ -87,9 +87,9 @@ export default function ProductCard({ product, index = 0, badge }) {
           flexShrink: 0,
         }}
       >
-        {/* Product image */}
+        {/* Product image - Updated to use BASE_URL */}
         <img
-          src={`${API}${image}`}
+          src={`${BASE_URL}${image}`}
           alt={name}
           style={{
             width: "100%",
