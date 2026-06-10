@@ -9,8 +9,9 @@ import TrendingProducts from './TrendingProducts';
 import NewArrivals from './NewArrivals';
 import PromoBanner from './PromoBanner';
 import { SingleBanner, MultiBanner, SlideshowBanner } from './Banner';
+import { BASE_URL } from '../api';
 
-const API = 'http://localhost:5000';
+const API = BASE_URL;
 
 function TrustBadges() {
   const badges = [
@@ -151,9 +152,6 @@ function StandaloneSection({ section }) {
   );
 }
 
-// ── Promo Banner wrapper ─────────────────────────────────────────
-// Full-bleed (no maxWidth wrapper) so it stretches edge-to-edge like
-// the reference site's cooking-essentials banner.
 function PromoBannerSection() {
   return (
     <div style={{ width: '100%' }}>
@@ -179,7 +177,6 @@ export default function HomePage() {
 
   if (sections === null) return <div style={{ height: '100vh', background: '#fff' }} />;
 
-  // ── Fallback layout (no config saved yet) ───────────────────────
   if (sections.length === 0) {
     return (
       <div style={{ background: '#fff', minHeight: '100vh' }}>
@@ -197,24 +194,20 @@ export default function HomePage() {
     );
   }
 
-  // ── Dynamic layout ───────────────────────────────────────────────
   const nodes = [];
   let i = 0;
   while (i < sections.length) {
     const s = sections[i];
 
-    // Static / structural sections
     if (s.type === 'hero')                { nodes.push(<Hero key={s.id} />);               i++; continue; }
     if (s.type === 'featured_categories') { nodes.push(<FeaturedCategories key={s.id} />); i++; continue; }
     if (s.type === 'trust_badges')        { nodes.push(<TrustBadges key={s.id} />);        i++; continue; }
 
-    // ── Promo Banner (full-width uploaded image / video) ─────────
     if (s.type === 'promo_banner') {
       nodes.push(<PromoBannerSection key={s.id} />);
       i++; continue;
     }
 
-    // Product sections — optionally absorb trailing banner(s) as sidebar
     if (PRODUCT_TYPES.has(s.type)) {
       const trailing = [];
       let j = i + 1;
@@ -232,7 +225,6 @@ export default function HomePage() {
       continue;
     }
 
-    // URL-based banner sections
     if (BANNER_TYPES.has(s.type)) {
       nodes.push(
         <div key={s.id} style={{ borderTop: '1px solid #f3f4f6' }}>

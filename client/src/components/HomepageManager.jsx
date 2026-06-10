@@ -5,8 +5,9 @@ import {
   TrendingUp, Pin, ShoppingBag, Monitor, Grid, Film, Upload, X,
 } from "lucide-react";
 
-// ── All API calls go through Vite proxy → localhost:5000 ──────────────────────
-const API = "";   // empty = use Vite proxy; swap to "http://localhost:5000" if needed
+import { BASE_URL } from "../api";
+const API = BASE_URL;
+
 const getToken = () => localStorage.getItem("token");
 const authHdr  = () => ({ Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" });
 const authFormHdr = () => ({ Authorization: `Bearer ${getToken()}` });
@@ -177,13 +178,11 @@ function PromoBannerEditor({ sectionId, onSaved }) {
         </div>
       )}
 
-      {/* Upload form */}
       <div style={{ background: "#faf8f5", borderRadius: 10, border: "1px solid #f0ece8", padding: 18 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "#6a5a4a", letterSpacing: "0.5px", marginBottom: 14, textTransform: "uppercase" }}>
           {editingId ? "Edit Banner" : "Upload New Banner"}
         </div>
 
-        {/* Drop zone */}
         <div
           onClick={() => fileRef.current.click()}
           style={{
@@ -233,13 +232,11 @@ function PromoBannerEditor({ sectionId, onSaved }) {
         </div>
       </div>
 
-      {/* Existing banners */}
       {banners.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "1px", color: "#a09080", textTransform: "uppercase" }}>Saved Banners</div>
           {banners.map(b => (
             <div key={b._id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #f0ece8", overflow: "hidden" }}>
-              {/* Preview strip */}
               <div style={{ height: 90, background: "#f0ece8", position: "relative", overflow: "hidden" }}>
                 {b.mediaType === "video"
                   ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1410" }}><Film size={28} color="#666" /></div>
@@ -381,9 +378,9 @@ export default function HomepageManager() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/homepage/config").then(r => r.json()),
-      fetch("/api/homepage/pinned-categories").then(r => r.json()),
-      fetch("/api/categories").then(r => r.json()),
+      fetch(`${API}/api/homepage/config`).then(r => r.json()),
+      fetch(`${API}/api/homepage/pinned-categories`).then(r => r.json()),
+      fetch(`${API}/api/categories`).then(r => r.json()),
     ]).then(([config, pinned, cats]) => {
       setSections(config?.sections || []);
       setPinnedCats(Array.isArray(pinned) ? pinned : []);
@@ -425,25 +422,25 @@ export default function HomepageManager() {
   const saveLayout = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/homepage/config", { method: "POST", headers: authHdr(), body: JSON.stringify({ sections }) });
+      const res = await fetch(`${API}/api/homepage/config`, { method: "POST", headers: authHdr(), body: JSON.stringify({ sections }) });
       if (!res.ok) throw new Error("Save failed");
       showToast("Layout saved!");
     } catch (e) { showToast(e.message, "error"); }
     setSaving(false);
   };
 
-  const pinCategory    = cat => {
+  const pinCategory = cat => {
     const name = cat.name || cat;
     if (pinnedCats.find(c => c.name === name)) return;
     setPinnedCats([...pinnedCats, { name, displayName: name, label: "Featured Category", description: "", productLimit: 6, gridCols: 4, icon: "", bannerImage: "", _id: Date.now().toString() }]);
   };
-  const unpinCategory  = name => setPinnedCats(pinnedCats.filter(c => c.name !== name));
+  const unpinCategory   = name => setPinnedCats(pinnedCats.filter(c => c.name !== name));
   const updatePinnedCat = (name, updates) => setPinnedCats(pinnedCats.map(c => c.name === name ? { ...c, ...updates } : c));
 
   const savePinnedCats = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/homepage/pinned-categories", { method: "POST", headers: authHdr(), body: JSON.stringify(pinnedCats) });
+      const res = await fetch(`${API}/api/homepage/pinned-categories`, { method: "POST", headers: authHdr(), body: JSON.stringify(pinnedCats) });
       if (!res.ok) throw new Error("Save failed");
       showToast("Pinned categories saved!");
     } catch (e) { showToast(e.message, "error"); }
@@ -496,10 +493,10 @@ export default function HomepageManager() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 20 }}>
             {sortedSections.map((section, index) => {
-              const typeInfo   = SECTION_TYPES.find(t => t.value === section.type);
-              const Icon       = typeInfo?.Icon || Monitor;
+              const typeInfo     = SECTION_TYPES.find(t => t.value === section.type);
+              const Icon         = typeInfo?.Icon || Monitor;
               const isExpandable = ["single_banner", "multi_banner", "slideshow_banner", "promo_banner"].includes(section.type);
-              const isExpanded = expandedId === section.id;
+              const isExpanded   = expandedId === section.id;
 
               return (
                 <div key={section.id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #f0ece8", padding: 16 }}>
