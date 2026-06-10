@@ -9,9 +9,12 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await API.post('/auth/login', { username, password });
-      localStorage.setItem('token', res.data.token);
-      navigate('/admin'); // Goes to dashboard after success
+      const response = await API.post('/auth/login', { 
+        username: data.username, 
+        password: data.password 
+      });
+      localStorage.setItem('token', response.data.token);
+      navigate('/admin');
     } catch (err) {
       alert("Invalid Login Details. Check your .env file credentials.");
     }
@@ -35,7 +38,9 @@ const Login = () => {
             placeholder="Password" 
             onChange={e => setData({...data, password: e.target.value})} 
           />
-          <button className="w-full bg-black text-white p-4 rounded-xl font-bold hover:bg-gray-800 transition shadow-lg">
+          <button 
+            type="submit"
+            className="w-full bg-black text-white p-4 rounded-xl font-bold hover:bg-gray-800 transition shadow-lg">
             Sign In
           </button>
         </div>
