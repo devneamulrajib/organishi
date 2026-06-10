@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import API, { BASE_URL } from './api'; 
+import API from './api'; 
 import HomepageManager from "./components/HomepageManager";
 import {
   LayoutDashboard, Package, Image, Plus, Trash2, LogOut,
@@ -30,7 +30,6 @@ const TAG_FILTER_OPTIONS = [
   ...PRODUCT_TAGS.map(t => ({ value: t.value, label: t.label, emoji: t.emoji })),
 ];
 
-/* ─── tiny ui atoms ─── */
 function Toast({ message, type = 'success', onClose }) {
   useEffect(() => { const t = setTimeout(onClose, 3200); return () => clearTimeout(t); }, []);
   return (
@@ -180,7 +179,8 @@ function SettingsPanel({ onToast }) {
   useEffect(() => {
     API.get('/settings')
       .then(res => {
-        if (res.data?.logoUrl) setCurrentLogo(`${BASE_URL}${res.data.logoUrl}`);
+        // logoUrl is already a full Cloudinary URL — use it directly
+        if (res.data?.logoUrl) setCurrentLogo(res.data.logoUrl);
       })
       .catch(() => {});
   }, []);
@@ -200,7 +200,8 @@ function SettingsPanel({ onToast }) {
       const fd = new FormData();
       fd.append('logo', file);
       const res = await API.post('/settings/logo', fd, { headers: authFormHdr() });
-      if (res.data?.logoUrl) setCurrentLogo(`${BASE_URL}${res.data.logoUrl}`);
+      // Use URL directly — already a full Cloudinary URL
+      if (res.data?.logoUrl) setCurrentLogo(res.data.logoUrl);
       setFile(null);
       setPreview(null);
       onToast('Logo updated! Refresh the site to see it.');
@@ -234,7 +235,6 @@ function SettingsPanel({ onToast }) {
           Displayed beside the brand name in the navigation. Use a PNG with transparent background for best results. Recommended height: 32–40px.
         </p>
 
-        {/* Current logo preview */}
         {currentLogo && !preview && (
           <div style={{ marginBottom: 24 }}>
             <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: '1px', textTransform: 'uppercase', color: '#888', display: 'block', marginBottom: 10 }}>Current Logo</label>
@@ -260,7 +260,6 @@ function SettingsPanel({ onToast }) {
           </div>
         )}
 
-        {/* Upload new */}
         <div style={{ marginBottom: 20 }}>
           <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: '1px', textTransform: 'uppercase', color: '#888', display: 'block', marginBottom: 8 }}>
             {currentLogo ? 'Replace Logo' : 'Upload Logo'}
@@ -277,7 +276,6 @@ function SettingsPanel({ onToast }) {
           >
             {preview ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                {/* Preview on dark bg so it looks like the actual header */}
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: 12,
                   padding: '12px 20px', borderRadius: 8, background: '#0a0a0a',
@@ -371,7 +369,8 @@ function Dashboard({ products, slides, categories }) {
                     <Film size={24} color="#666" />
                   </div>
                 ) : (
-                  <img src={`${BASE_URL}${slide.mediaUrl}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  // mediaUrl is already a full Cloudinary URL
+                  <img src={slide.mediaUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 )}
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 10 }}>
                   <div style={{ fontSize: 11, fontWeight: 500, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{slide.title || 'Untitled'}</div>
@@ -415,7 +414,8 @@ function CategoriesPanel({ categories, onRefresh, onToast }) {
     setEditing(c);
     setForm({ name: c.name, icon: c.icon || '🛒', link: c.link || '/', color: c.color || '#B07D4A', colorDark: c.colorDark || '#8A5C30', order: c.order ?? 0, active: c.active });
     setImgFile(null);
-    setPreview(c.imageUrl ? `${BASE_URL}${c.imageUrl}` : null);
+    // imageUrl is already a full Cloudinary URL — use directly
+    setPreview(c.imageUrl || null);
     setShowForm(true);
   };
   const close = () => { setShowForm(false); setEditing(null); };
@@ -543,7 +543,8 @@ function CategoriesPanel({ categories, onRefresh, onToast }) {
             <div style={{ padding: '16px 16px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 <div style={{ width: 48, height: 48, borderRadius: 13, background: `linear-gradient(145deg, ${cat.color || '#B07D4A'}, ${cat.colorDark || '#8A5C30'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                  {cat.imageUrl ? <img src={`${BASE_URL}${cat.imageUrl}`} alt="" style={{ width: '70%', height: '70%', objectFit: 'contain' }} /> : cat.icon || '🛒'}
+                  {/* imageUrl is already a full Cloudinary URL */}
+                  {cat.imageUrl ? <img src={cat.imageUrl} alt="" style={{ width: '70%', height: '70%', objectFit: 'contain' }} /> : cat.icon || '🛒'}
                 </div>
                 <div style={{ overflow: 'hidden' }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1410', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</div>
@@ -589,9 +590,20 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
   };
   const openEdit = p => {
     setEditing(p);
-    setForm({ name: p.name, price: p.price || '', originalPrice: p.originalPrice || '', category: p.category || '', tags: p.tags || [] });
+    setForm({
+      name: p.name,
+      price: p.price || '',
+      originalPrice: p.originalPrice || '',
+      category: p.category || '',
+      // ✅ KEY FIX: ensure tags is always a proper array
+      tags: Array.isArray(p.tags) ? p.tags : [],
+    });
     setFiles({ bottle: null, nut: null });
-    setPreviews({ bottle: p.bottleImg ? `${BASE_URL}${p.bottleImg}` : null, nut: p.nutImg ? `${BASE_URL}${p.nutImg}` : null });
+    // bottleImg / nutImg are already full Cloudinary URLs — use directly
+    setPreviews({
+      bottle: p.bottleImg || null,
+      nut:    p.nutImg    || null,
+    });
     setShowForm(true);
   };
   const close = () => { setShowForm(false); setEditing(null); };
@@ -743,7 +755,8 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
           {filteredProducts.map(p => (
             <div key={p._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
               <div style={{ height: 160, background: '#faf8f5', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {p.bottleImg ? <img src={`${BASE_URL}${p.bottleImg}`} alt="" style={{ height: '100%', width: '100%', objectFit: 'contain', padding: 16 }} /> : <Package size={36} color="#d0c8c0" />}
+                {/* bottleImg is already a full Cloudinary URL */}
+                {p.bottleImg ? <img src={p.bottleImg} alt="" style={{ height: '100%', width: '100%', objectFit: 'contain', padding: 16 }} /> : <Package size={36} color="#d0c8c0" />}
                 {Array.isArray(p.tags) && p.tags.length > 0 && (
                   <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {p.tags.slice(0, 3).map(tv => {
@@ -798,7 +811,8 @@ function SlidesPanel({ slides, onRefresh, onToast }) {
     setEditing(s);
     setForm({ title: s.title, subtitle: s.subtitle, ctaText: s.ctaText, ctaLink: s.ctaLink, order: s.order, active: s.active });
     setMediaFile(null);
-    setMediaPreview(s.mediaType === 'video' ? 'video' : `${BASE_URL}${s.mediaUrl}`);
+    // mediaUrl is already a full Cloudinary URL
+    setMediaPreview(s.mediaType === 'video' ? 'video' : s.mediaUrl);
     setShowForm(true);
   };
   const close = () => { setShowForm(false); setEditing(null); };
@@ -873,8 +887,9 @@ function SlidesPanel({ slides, onRefresh, onToast }) {
           <div key={slide._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
             <div style={{ height: 160, background: '#1a1410', position: 'relative' }}>
               {slide.mediaType === 'video'
-                ? <video src={`${BASE_URL}${slide.mediaUrl}`} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <img src={`${BASE_URL}${slide.mediaUrl}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                // mediaUrl is already a full Cloudinary URL
+                ? <video src={slide.mediaUrl} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <img src={slide.mediaUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               }
             </div>
             <div style={{ padding: '12px 14px', display: 'flex', gap: 8 }}>
