@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// Import our smart API instance and the BASE_URL for images/videos
-import API, { BASE_URL } from '../api'; 
+import API from '../api'; 
 import { ChevronLeft, ChevronRight, MousePointer2 } from 'lucide-react';
 
 const SLIDE_DURATION = 6000;
@@ -16,7 +15,6 @@ export default function Hero() {
   const startRef = useRef(null);
 
   useEffect(() => {
-    // Use the smart API instance instead of raw axios
     API.get('/hero-slides')
       .then(r => { 
         setSlides(r.data); 
@@ -58,23 +56,21 @@ export default function Hero() {
 
   if (status === 'loading') return <div style={{ height: '80vh', background: '#fff' }} />;
 
-  // Default slide if API fails (so your site never looks empty)
   const defaultSlide = {
     _id: 'default',
     title: 'Fresh & Organic Daily',
     subtitle: 'WELCOME TO BABAI BANGLADESH',
     ctaText: 'SHOP NOW',
-    mediaUrl: '/uploads/hero-placeholder.jpg', 
     mediaType: 'image'
   };
 
   const activeSlides = slides.length ? slides : [defaultSlide];
   const slide = activeSlides[current];
   
-  // Updated source to use BASE_URL for database items
-  const src = slide._id === 'default' 
-    ? "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1974" 
-    : `${BASE_URL}${slide.mediaUrl}`;
+  // ✅ FIXED: slide.mediaUrl is already a full Cloudinary URL — never prepend BASE_URL
+  const src = slide._id === 'default'
+    ? "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1974"
+    : slide.mediaUrl;
 
   return (
     <section style={{
@@ -107,7 +103,7 @@ export default function Hero() {
           ) : (
             <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           )}
-          {/* Dark overlay to make text pop */}
+          {/* Dark overlay */}
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
         </motion.div>
       </AnimatePresence>
@@ -148,7 +144,7 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Progress Bar (Bottom) */}
+      {/* Progress Bar */}
       <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)' }}>
         <motion.div style={{ height: '100%', background: '#00bcd4', width: `${progress}%` }} />
       </div>
