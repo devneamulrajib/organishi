@@ -162,7 +162,7 @@ app.get('/api/products', async (req, res) => {
       isNew:  new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     }));
     res.json({ products: normalized, total, page: Number(page), limit: Number(limit) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.post('/api/products', auth, uploadFields.fields([{ name: 'bottle' }, { name: 'nut' }]), async (req, res) => {
@@ -183,7 +183,7 @@ app.post('/api/products', auth, uploadFields.fields([{ name: 'bottle' }, { name:
       nutImg:    req.files?.['nut']    ? fileUrl(req.files['nut'][0])    : null,
     });
     res.status(201).json(product);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.put('/api/products/:id', auth, uploadFields.fields([{ name: 'bottle' }, { name: 'nut' }]), async (req, res) => {
@@ -206,7 +206,7 @@ app.put('/api/products/:id', auth, uploadFields.fields([{ name: 'bottle' }, { na
     const product = await Product.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!product) return res.status(404).json({ message: 'Not found' });
     res.json(product);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.delete('/api/products/:id', auth, async (req, res) => {
@@ -240,7 +240,7 @@ app.post('/api/hero-slides', auth, uploadMedia.single('media'), async (req, res)
       mediaType: isVideo ? 'video' : 'image',
     });
     res.status(201).json(slide);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.put('/api/hero-slides/:id', auth, uploadMedia.single('media'), async (req, res) => {
@@ -260,7 +260,7 @@ app.put('/api/hero-slides/:id', auth, uploadMedia.single('media'), async (req, r
     const slide = await HeroSlide.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!slide) return res.status(404).json({ message: 'Not found' });
     res.json(slide);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.delete('/api/hero-slides/:id', auth, async (req, res) => {
@@ -292,7 +292,7 @@ app.post('/api/categories', auth, uploadImage.single('image'), async (req, res) 
       imageUrl:  req.file ? fileUrl(req.file) : null,
     });
     res.status(201).json(cat);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.put('/api/categories/:id', auth, uploadImage.single('image'), async (req, res) => {
@@ -310,7 +310,7 @@ app.put('/api/categories/:id', auth, uploadImage.single('image'), async (req, re
     const cat = await Category.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!cat) return res.status(404).json({ message: 'Not found' });
     res.json(cat);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.delete('/api/categories/:id', auth, async (req, res) => {
@@ -324,7 +324,7 @@ app.get('/api/homepage/config', async (req, res) => {
     const config = await HomepageConfig.findOne().sort({ updatedAt: -1 });
     if (!config) return res.json({ sections: [] });
     res.json(config);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.post('/api/homepage/config', auth, async (req, res) => {
@@ -361,7 +361,7 @@ app.post('/api/homepage/pinned-categories', auth, async (req, res) => {
       )
     );
     res.json(await Promise.all(ops));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 // ── Promo Banner Routes ──────────────────────────────────────────
@@ -386,7 +386,7 @@ app.post('/api/promo-banners', auth, uploadMedia.single('media'), async (req, re
       active:    req.body.active !== 'false',
     });
     res.status(201).json(banner);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.put('/api/promo-banners/:id', auth, uploadMedia.single('media'), async (req, res) => {
@@ -402,7 +402,7 @@ app.put('/api/promo-banners/:id', auth, uploadMedia.single('media'), async (req,
     const banner = await PromoBanner.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!banner) return res.status(404).json({ message: 'Not found' });
     res.json(banner);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 app.delete('/api/promo-banners/:id', auth, async (req, res) => {
@@ -419,7 +419,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'ORGANISHI_SECRET', { expiresIn: '7d' });
     res.json({ token });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error("Route error:", err.stack || err); res.status(500).json({ error: err.message || String(err) }); }
 });
 
 // ── Start ─────────────────────────────────────────────────────────
