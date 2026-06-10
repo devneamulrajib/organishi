@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { ChevronRight, Package, TrendingUp, Sparkles, Truck, ShieldCheck, Clock, RefreshCcw } from 'lucide-react';
 
 import ProductCard from './ProductCard';
@@ -9,9 +8,7 @@ import TrendingProducts from './TrendingProducts';
 import NewArrivals from './NewArrivals';
 import PromoBanner from './PromoBanner';
 import { SingleBanner, MultiBanner, SlideshowBanner } from './Banner';
-import { BASE_URL } from '../api';
-
-const API = BASE_URL;
+import API from '../api';
 
 function TrustBadges() {
   const badges = [
@@ -58,8 +55,9 @@ function SectionHeader({ title, icon, linkHref }) {
 function ProductGrid({ params }) {
   const [data, setData]       = useState([]);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    axios.get(`${API}/api/products?${new URLSearchParams(params)}`)
+    API.get('/products', { params })
       .then(r => setData(Array.isArray(r.data) ? r.data : (r.data.products || [])))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
@@ -90,22 +88,35 @@ const BANNER_TYPES  = new Set(['single_banner', 'multi_banner', 'slideshow_banne
 const PRODUCT_TYPES = new Set(['all_products', 'trending', 'new_arrivals']);
 
 const SECTION_META = {
-  all_products: { title: 'Best Sellers', icon: <Package size={20} />,    href: '/products' },
-  trending:     { title: 'Trending',     icon: <TrendingUp size={20} />, href: '/products' },
-  new_arrivals: { title: 'New Arrivals', icon: <Sparkles size={20} />,   href: '/products' },
+  all_products: { title: 'Best Sellers',  icon: <Package size={20} />,    href: '/products' },
+  trending:     { title: 'Trending',      icon: <TrendingUp size={20} />, href: '/products' },
+  new_arrivals: { title: 'New Arrivals',  icon: <Sparkles size={20} />,   href: '/products' },
+};
+
+// ✅ FIX: correct tag mapping for each section type
+const SECTION_TAG = {
+  trending:     'trending',
+  new_arrivals: 'new',
+  all_products: null, // no tag filter — show all
 };
 
 function InlineProductGrid({ type }) {
-  const tag   = type === 'trending' ? 'trending' : 'new';
+  const tag   = SECTION_TAG[type];
   const limit = 8;
   const [products, setProducts] = useState([]);
   const [loading, setLoading]   = useState(true);
+
   useEffect(() => {
-    const url = type === 'all_products'
-      ? `${API}/api/products?limit=${limit}`
-      : `${API}/api/products?tags=${tag}&limit=${limit}`;
-    fetch(url).then(r => r.json())
-      .then(d => { setProducts(Array.isArray(d) ? d : d.products || []); setLoading(false); })
+    // ✅ FIX: use API instance, build params cleanly
+    const params = { limit };
+    if (tag) params.tags = tag;
+
+    API.get('/products', { params })
+      .then(r => {
+        const d = r.data;
+        setProducts(Array.isArray(d) ? d : (d.products || []));
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [type]);
 
@@ -164,10 +175,9 @@ export default function HomePage() {
   const [sections, setSections] = useState(null);
 
   useEffect(() => {
-    fetch(`${API}/api/homepage/config`)
-      .then(r => r.json())
-      .then(data => {
-        const list = (data?.sections || [])
+    API.get('/homepage/config')
+      .then(r => {
+        const list = (r.data?.sections || [])
           .filter(s => s.isVisible !== false)
           .sort((a, b) => a.order - b.order);
         setSections(list);
