@@ -1,58 +1,76 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const API = "http://localhost:5000";
 
-function imgSrc(url) {
+function mediaSrc(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/uploads"))
     return url.startsWith("/") ? `${API}${url}` : url;
   return url;
 }
 
-// ─── Reusable banner tile ─────────────────────────────────────────────────────
-function BannerTile({ banner, height = "100%", radius = 14, large = false, style = {} }) {
-  const [hovered, setHovered] = useState(false);
+// Detect video by explicit type field or file extension
+function isVideo(banner) {
+  if (banner.type === "video") return true;
+  if (banner.type === "image") return false;
+  const url = banner.video || banner.image || "";
+  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+}
+
+// ─── Video component ──────────────────────────────────────────────────────────
+function VideoMedia({ src }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.play().catch(() => {});
+  }, [src]);
   return (
-    <motion.a
-      href={banner.link || "#"}
-      initial={{ opacity: 0, y: 10 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4 }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <video
+      ref={ref}
+      src={mediaSrc(src)}
+      autoPlay
+      muted
+      loop
+      playsInline
+      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+    />
+  );
+}
+
+// ─── Media renderer — picks image or video automatically ──────────────────────
+function Media({ banner, hovered }) {
+  const src = banner.video || banner.image || "";
+  if (isVideo(banner)) {
+    return <VideoMedia src={src} />;
+  }
+  return (
+    <img
+      src={mediaSrc(src)}
+      alt={banner.title || "Banner"}
       style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
         display: "block",
-        position: "relative",
-        borderRadius: radius,
-        overflow: "hidden",
-        height,
-        textDecoration: "none",
-        flexShrink: 0,
-        ...style,
+        transform: hovered ? "scale(1.04)" : "scale(1)",
+        transition: "transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94)",
       }}
-    >
-      <img
-        src={imgSrc(banner.image)}
-        alt={banner.title || "Banner"}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          display: "block",
-          transform: hovered ? "scale(1.04)" : "scale(1)",
-          transition: "transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94)",
-        }}
-      />
-      {/* Overlay */}
+    />
+  );
+}
+
+// ─── Overlay text + gradient ──────────────────────────────────────────────────
+function Overlay({ banner, large }) {
+  return (
+    <>
       <div
         style={{
           position: "absolute",
           inset: 0,
           background: large
-            ? "linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)"
-            : "linear-gradient(to top, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0.05) 55%, transparent 100%)",
+            ? "linear-gradient(to top, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)"
+            : "linear-gradient(to top, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.05) 55%, transparent 100%)",
+          pointerEvents: "none",
         }}
       />
       {(banner.title || banner.subtitle || banner.buttonText) && (
@@ -62,12 +80,14 @@ function BannerTile({ banner, height = "100%", radius = 14, large = false, style
             bottom: large ? 20 : 14,
             left: large ? 20 : 14,
             right: large ? 20 : 14,
+            zIndex: 2,
           }}
         >
           {banner.subtitle && (
             <p style={{
               fontSize: 9, fontWeight: 700, letterSpacing: "1.8px",
-              textTransform: "uppercase", color: "rgba(255,255,255,0.75)", margin: "0 0 4px",
+              textTransform: "uppercase", color: "rgba(255,255,255,0.75)",
+              margin: "0 0 4px",
             }}>
               {banner.subtitle}
             </p>
@@ -95,15 +115,57 @@ function BannerTile({ banner, height = "100%", radius = 14, large = false, style
           )}
         </div>
       )}
+    </>
+  );
+}
+
+// ─── Reusable banner tile ─────────────────────────────────────────────────────
+function BannerTile({ banner, height = "100%", radius = 14, large = false, style = {} }) {
+  const [hovered, setHovered] = useState(false);
+  const video = isVideo(banner);
+
+  return (
+    <motion.a
+      href={banner.link || "#"}
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.4 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "block",
+        position: "relative",
+        borderRadius: radius,
+        overflow: "hidden",
+        height,
+        textDecoration: "none",
+        flexShrink: 0,
+        ...style,
+      }}
+    >
+      {/* Videos don't scale on hover — only images do */}
+      <Media banner={banner} hovered={!video && hovered} />
+      <Overlay banner={banner} large={large} />
     </motion.a>
   );
 }
 
-// ─── Single Banner ─────────────────────────────────────────────────────────────
-// Designed to fill whatever container it's placed in — use it inside a sized wrapper.
-// Pass `height` prop to control height (default 240px).
+// ─── Single Banner ────────────────────────────────────────────────────────────
+// Banner object shape:
+//   {
+//     image?: string,       // image URL (jpg, png, webp …)
+//     video?: string,       // video URL (mp4, webm, mov …)
+//     type?: "image"|"video", // optional explicit override
+//     title?: string,
+//     subtitle?: string,
+//     buttonText?: string,
+//     link?: string,
+//     isActive?: boolean,
+//   }
 export function SingleBanner({ banner, height = 240, radius = 14 }) {
-  if (!banner || banner.isActive === false || !banner.image) return null;
+  if (!banner || banner.isActive === false) return null;
+  if (!banner.image && !banner.video) return null;
   return (
     <BannerTile
       banner={banner}
@@ -116,13 +178,13 @@ export function SingleBanner({ banner, height = 240, radius = 14 }) {
 }
 
 // ─── Multi Banner ─────────────────────────────────────────────────────────────
-// 1 banner  → full-width tall tile
-// 2 banners → two equal columns, side-by-side, full-width
-// 3 banners → large left + two stacked right (matches screenshot 1)
-// 4+        → 2×2 grid
+// 1  → full-width tall tile
+// 2  → two equal side-by-side columns
+// 3  → large left + two stacked right (matches screenshot layout)
+// 4+ → auto 2-col grid
 export function MultiBanner({ banners, height = 460 }) {
   if (!Array.isArray(banners) || banners.length === 0) return null;
-  const active = banners.filter((b) => b.isActive !== false && b.image);
+  const active = banners.filter((b) => b.isActive !== false && (b.image || b.video));
   if (active.length === 0) return null;
 
   if (active.length === 1) {
@@ -148,12 +210,12 @@ export function MultiBanner({ banners, height = 460 }) {
   }
 
   if (active.length === 3) {
-    const smallH = (height - 10) / 2; // two small tiles + gap
+    const smallH = (height - 10) / 2;
     return (
       <div style={{ display: "grid", gridTemplateColumns: "1.55fr 1fr", gap: 10, height }}>
-        {/* Large left */}
+        {/* Large left tile */}
         <BannerTile banner={active[0]} height="100%" radius={14} large />
-        {/* Two stacked right */}
+        {/* Two stacked right tiles */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <BannerTile banner={active[1]} height={smallH} radius={14} />
           <BannerTile banner={active[2]} height={smallH} radius={14} />
@@ -162,7 +224,7 @@ export function MultiBanner({ banners, height = 460 }) {
     );
   }
 
-  // 4+ → 2×2 grid
+  // 4+
   return (
     <div style={{
       display: "grid",
@@ -180,10 +242,11 @@ export function MultiBanner({ banners, height = 460 }) {
 export function SlideshowBanner({ banners, autoPlay = true, interval = 4000, height = 260 }) {
   const [current, setCurrent] = useState(0);
   const active = Array.isArray(banners)
-    ? banners.filter((b) => b.isActive !== false && b.image)
+    ? banners.filter((b) => b.isActive !== false && (b.image || b.video))
     : [];
 
   useEffect(() => { setCurrent(0); }, [banners]);
+
   useEffect(() => {
     if (!autoPlay || active.length <= 1) return;
     const t = setInterval(() => setCurrent((c) => (c + 1) % active.length), interval);
@@ -203,46 +266,15 @@ export function SlideshowBanner({ banners, autoPlay = true, interval = 4000, hei
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          style={{ display: "block", width: "100%", height: "100%", textDecoration: "none" }}
+          style={{
+            display: "block",
+            position: "absolute",
+            inset: 0,
+            textDecoration: "none",
+          }}
         >
-          <img
-            src={imgSrc(b.image)}
-            alt={b.title || "Banner"}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-          <div style={{
-            position: "absolute", inset: 0,
-            background: "linear-gradient(to right, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0.08) 60%, transparent 100%)",
-          }} />
-          {(b.title || b.subtitle || b.buttonText) && (
-            <div style={{ position: "absolute", bottom: 22, left: 22, maxWidth: 320 }}>
-              {b.subtitle && (
-                <p style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: "2px",
-                  textTransform: "uppercase", color: "rgba(255,255,255,0.75)", margin: "0 0 5px",
-                }}>
-                  {b.subtitle}
-                </p>
-              )}
-              {b.title && (
-                <h2 style={{
-                  fontSize: 20, fontWeight: 700, color: "#fff",
-                  margin: "0 0 12px", lineHeight: 1.2,
-                }}>
-                  {b.title}
-                </h2>
-              )}
-              {b.buttonText && (
-                <span style={{
-                  display: "inline-block", padding: "7px 18px",
-                  background: "#fff", color: "#1a1a1a", borderRadius: 7,
-                  fontSize: 11, fontWeight: 700,
-                }}>
-                  {b.buttonText}
-                </span>
-              )}
-            </div>
-          )}
+          <Media banner={b} hovered={false} />
+          <Overlay banner={b} large />
         </motion.a>
       </AnimatePresence>
 
