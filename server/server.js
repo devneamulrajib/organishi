@@ -70,6 +70,37 @@ const handleUpload = (uploadFn) => (req, res, next) => {
   });
 };
 
+// ── Helper: get clean URL from uploaded file ─────────────────────
+// multer-storage-cloudinary puts the full Cloudinary URL in file.path
+// but sometimes environments prepend the server base URL — this strips that.
+const fileUrl = (file) => {
+  if (!file) return null;
+  console.log('📁 Uploaded file object:', JSON.stringify(file, null, 2));
+
+  // Prefer secure_url if available (direct from cloudinary response)
+  if (file.secure_url) return file.secure_url;
+
+  // file.path should be the full Cloudinary URL
+  if (file.path) {
+    // If it starts with http it's already a proper URL
+    if (file.path.startsWith('http://') || file.path.startsWith('https://')) {
+      return file.path;
+    }
+    // Otherwise it may be a mangled string — try to extract the cloudinary URL
+    const match = file.path.match(/(https?:\/\/res\.cloudinary\.com\/[^\s]+)/);
+    if (match) return match[1];
+  }
+
+  // Last resort: reconstruct from cloudinary public_id
+  if (file.public_id && file.resource_type) {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const resourceType = file.resource_type || 'image';
+    return `https://res.cloudinary.com/${cloudName}/${resourceType}/upload/${file.public_id}`;
+  }
+
+  return null;
+};
+
 // ── Models ───────────────────────────────────────────────────────
 const Product = mongoose.model('Product', new mongoose.Schema({
   name:          String,
@@ -144,9 +175,6 @@ const auth = (req, res, next) => {
     res.status(401).json({ message: 'Invalid token' });
   }
 };
-
-// ── Helper: get URL from uploaded file ──────────────────────────
-const fileUrl = (file) => file ? file.path : null;
 
 // ── Product Routes ───────────────────────────────────────────────
 app.get('/api/products', async (req, res) => {
