@@ -10,7 +10,6 @@ const jwt        = require('jsonwebtoken');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// Import the external HomepageConfig model
 const HomepageConfig = require('./models/HomepageConfig');
 
 const app = express();
@@ -25,7 +24,7 @@ cloudinary.config({
 // ── CORS ─────────────────────────────────────────────────────────
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -71,27 +70,20 @@ const handleUpload = (uploadFn) => (req, res, next) => {
 };
 
 // ── Helper: get clean URL from uploaded file ─────────────────────
-// multer-storage-cloudinary puts the full Cloudinary URL in file.path
-// but sometimes environments prepend the server base URL — this strips that.
 const fileUrl = (file) => {
   if (!file) return null;
   console.log('📁 Uploaded file object:', JSON.stringify(file, null, 2));
 
-  // Prefer secure_url if available (direct from cloudinary response)
   if (file.secure_url) return file.secure_url;
 
-  // file.path should be the full Cloudinary URL
   if (file.path) {
-    // If it starts with http it's already a proper URL
     if (file.path.startsWith('http://') || file.path.startsWith('https://')) {
       return file.path;
     }
-    // Otherwise it may be a mangled string — try to extract the cloudinary URL
     const match = file.path.match(/(https?:\/\/res\.cloudinary\.com\/[^\s]+)/);
     if (match) return match[1];
   }
 
-  // Last resort: reconstruct from cloudinary public_id
   if (file.public_id && file.resource_type) {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const resourceType = file.resource_type || 'image';
@@ -163,6 +155,11 @@ const PromoBanner = mongoose.model('PromoBanner', new mongoose.Schema({
   active:    { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
 }));
+
+// ── NEW: Site Settings Model ─────────────────────────────────────
+const SiteSettings = mongoose.model('SiteSettings', new mongoose.Schema({
+  logoUrl: { type: String, default: null },
+}, { timestamps: true }));
 
 // ── Auth middleware ──────────────────────────────────────────────
 const auth = (req, res, next) => {
@@ -508,6 +505,33 @@ app.delete('/api/promo-banners/:id', auth, async (req, res) => {
   try { await PromoBanner.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted' }); }
   catch (err) {
     console.error('DELETE /api/promo-banners/:id error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Site Settings Routes ─────────────────────────────────────────
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settings = await SiteSettings.findOne();
+    res.json(settings || {});
+  } catch (err) {
+    console.error('GET /api/settings error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/settings/logo', auth, handleUpload(uploadImage.single('logo')), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const logoUrl = fileUrl(req.file);
+    const settings = await SiteSettings.findOneAndUpdate(
+      {},
+      { logoUrl },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.json({ logoUrl: settings.logoUrl });
+  } catch (err) {
+    console.error('POST /api/settings/logo error:', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });
