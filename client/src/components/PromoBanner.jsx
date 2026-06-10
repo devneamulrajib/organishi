@@ -8,12 +8,13 @@ function resolveUrl(url) {
   return `${BASE_URL}${url}`;
 }
 
-function useTypewriter(text = '', delay = 0, speed = 48) {
+/* ── Typewriter hook — must be called at the top level of a component ── */
+function useTypewriter(text = '', delay = 300, speed = 50) {
   const [displayText, setDisplayText] = useState('');
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!text) return;
+    if (!text) { setDisplayText(''); setDone(true); return; }
     setDisplayText('');
     setDone(false);
     let index = 0;
@@ -22,10 +23,7 @@ function useTypewriter(text = '', delay = 0, speed = 48) {
       timer = setInterval(() => {
         index += 1;
         setDisplayText(text.slice(0, index));
-        if (index >= text.length) {
-          clearInterval(timer);
-          setDone(true);
-        }
+        if (index >= text.length) { clearInterval(timer); setDone(true); }
       }, speed);
     }, delay);
     return () => { clearTimeout(start); clearInterval(timer); };
@@ -34,17 +32,13 @@ function useTypewriter(text = '', delay = 0, speed = 48) {
   return { displayText, done };
 }
 
-function FadeUp({ children, delay = 0 }) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
+/* ── FadeUp — no hooks, just style based on prop ── */
+function FadeUp({ children, visible, transitionDelay = '0s' }) {
   return (
     <div style={{
       opacity: visible ? 1 : 0,
       transform: visible ? 'translateY(0)' : 'translateY(12px)',
-      transition: 'opacity 0.5s ease, transform 0.5s ease',
+      transition: `opacity 0.5s ease ${transitionDelay}, transform 0.5s ease ${transitionDelay}`,
     }}>
       {children}
     </div>
@@ -54,6 +48,10 @@ function FadeUp({ children, delay = 0 }) {
 export default function PromoBanner({ banner: bannerProp, style }) {
   const [banner, setBanner] = useState(bannerProp || null);
   const [hovered, setHovered] = useState(false);
+  const [textVisible, setTextVisible] = useState(false);
+
+  /* Typewriter called unconditionally at top level — safe */
+  const { displayText, done } = useTypewriter(banner?.title || '', 300, 50);
 
   useEffect(() => {
     if (bannerProp) { setBanner(bannerProp); return; }
@@ -65,26 +63,33 @@ export default function PromoBanner({ banner: bannerProp, style }) {
       .catch(() => {});
   }, [bannerProp]);
 
+  /* Trigger text entrance after mount */
+  useEffect(() => {
+    if (!banner) return;
+    const t = setTimeout(() => setTextVisible(true), 80);
+    return () => clearTimeout(t);
+  }, [banner]);
+
   if (!banner?.mediaUrl) return null;
 
   const src = resolveUrl(banner.mediaUrl);
   const isVideo = banner.mediaType === 'video'
     || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(src);
 
-  const { displayText, done } = useTypewriter(banner.title || '', 300, 50);
-
   const align = banner.textAlign || 'left';
-  const gradientDir = align === 'right'
-    ? 'to left'
-    : align === 'center'
-    ? 'to bottom'
+  const color = banner.textColor || '#ffffff';
+
+  const gradientDir = align === 'right' ? 'to left'
+    : align === 'center' ? 'to bottom'
     : 'to right';
 
-  const textStyle = {
-    left:   { left: 32, right: 'auto', textAlign: 'left' },
-    center: { left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', top: '50%' },
-    right:  { right: 32, left: 'auto', textAlign: 'right' },
-  }[align] || { left: 32, textAlign: 'left' };
+  const posStyle = align === 'center'
+    ? { left: '50%', top: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }
+    : align === 'right'
+    ? { right: 32, left: 'auto', bottom: 28, textAlign: 'right' }
+    : { left: 32, right: 'auto', bottom: 28, textAlign: 'left' };
+
+  const hasText = banner.title || banner.subtitle;
 
   const card = (
     <div style={{ padding: 'clamp(12px, 2vw, 28px) clamp(16px, 5vw, 64px)', background: '#ffffff', ...style }}>
@@ -104,7 +109,7 @@ export default function PromoBanner({ banner: bannerProp, style }) {
           transition: 'box-shadow 0.4s ease',
         }}
       >
-        {/* Media */}
+        {/* ── Media ── */}
         {isVideo ? (
           <video
             src={src}
@@ -123,26 +128,21 @@ export default function PromoBanner({ banner: bannerProp, style }) {
           />
         )}
 
-        {/* Gradient overlay */}
-        {(banner.title || banner.subtitle) && (
+        {/* ── Gradient scrim ── */}
+        {hasText && (
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: `linear-gradient(${gradientDir}, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.18) 55%, transparent 100%)`,
           }} />
         )}
 
-        {/* Text block */}
-        {(banner.title || banner.subtitle) && (
-          <div style={{
-            position: 'absolute',
-            bottom: align === 'center' ? undefined : 28,
-            ...textStyle,
-            zIndex: 3,
-            maxWidth: align === 'center' ? '80%' : 460,
-          }}>
-            {/* Subtitle — fades up */}
+        {/* ── Text block ── */}
+        {hasText && (
+          <div style={{ position: 'absolute', zIndex: 3, maxWidth: 460, ...posStyle }}>
+
+            {/* Subtitle */}
             {banner.subtitle && (
-              <FadeUp delay={100}>
+              <FadeUp visible={textVisible} transitionDelay="0.1s">
                 <p style={{
                   fontSize: 10, fontWeight: 700, letterSpacing: '2.5px',
                   textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)',
@@ -155,11 +155,11 @@ export default function PromoBanner({ banner: bannerProp, style }) {
 
             {/* Title — typewriter */}
             {banner.title && (
-              <FadeUp delay={200}>
+              <FadeUp visible={textVisible} transitionDelay="0.2s">
                 <h2 style={{
                   fontSize: 'clamp(18px, 2.6vw, 30px)',
                   fontWeight: 700,
-                  color: banner.textColor || '#ffffff',
+                  color,
                   lineHeight: 1.2,
                   margin: 0,
                   letterSpacing: '-0.2px',
@@ -170,10 +170,10 @@ export default function PromoBanner({ banner: bannerProp, style }) {
                       display: 'inline-block',
                       width: 2,
                       height: '0.85em',
-                      background: banner.textColor || '#fff',
+                      background: color,
                       marginLeft: 2,
                       verticalAlign: 'middle',
-                      animation: 'blink 0.7s step-end infinite',
+                      animation: 'twblink 0.7s step-end infinite',
                     }} />
                   )}
                 </h2>
@@ -188,7 +188,7 @@ export default function PromoBanner({ banner: bannerProp, style }) {
           background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 50%)',
         }} />
 
-        <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
+        <style>{`@keyframes twblink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
       </div>
     </div>
   );
