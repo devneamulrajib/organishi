@@ -6,19 +6,24 @@ import App from './App';
 import Admin from './Admin';
 import Login from './Login';
 
-// Import CSS files
 import './index.css';
 import './homepage.css';
 
-// ── Subdomain Detection Logic ──
 const hostname = window.location.hostname;
-// This checks if the user is on admin.organishi.com
 const isAdminDomain = hostname.startsWith('admin.');
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
   if (!token) return <Navigate to="/login" replace />;
   return children;
+}
+
+// Redirect component that does a real browser navigation to an external URL
+function ExternalRedirect({ to }) {
+  React.useEffect(() => {
+    window.location.href = to;
+  }, []);
+  return null;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -30,19 +35,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <>
             <Route path="/" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
             <Route path="/login" element={<Login />} />
-            {/* Redirect any other path on subdomain to root */}
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </>
         ) : (
           /* ── ROUTES FOR ORGANISHI.COM ── */
           <>
             <Route path="/" element={<Layout><App /></Layout>} />
             <Route path="/login" element={<Login />} />
-            {/* If someone types /admin on the main site, send them to the subdomain */}
-            <Route path="/admin" element={<Navigate to="https://admin.organishi.com" />} />
-            
-            {/* Add other shop routes here (e.g., /products) */}
-            {/* <Route path="/products" element={<Layout><Products /></Layout>} /> */}
+            {/* Correctly redirects to the admin subdomain using a real browser navigation */}
+            <Route path="/admin" element={<ExternalRedirect to="https://admin.organishi.com" />} />
           </>
         )}
       </Routes>

@@ -4,7 +4,7 @@ import HomepageManager from "./components/HomepageManager";
 import {
   LayoutDashboard, Package, Image, Plus, Trash2, LogOut,
   Upload, X, CheckCircle, Edit2, Eye, EyeOff, GripVertical,
-  ChevronRight, BarChart2, Film, Tag,
+  ChevronRight, BarChart2, Film, Tag, Settings,
 } from 'lucide-react';
 
 const getToken = () => localStorage.getItem('token');
@@ -14,7 +14,6 @@ const authFormHdr = () => ({
   'Content-Type': 'multipart/form-data',
 });
 
-// ── All available product tags ──────────────────────────────────────────────
 const PRODUCT_TAGS = [
   { value: 'new',         label: 'New Arrival',  color: '#1a1410', bg: '#f0ece8',  emoji: '✨' },
   { value: 'trending',    label: 'Trending',     color: '#c94433', bg: '#fef2f0',  emoji: '🔥' },
@@ -26,7 +25,6 @@ const PRODUCT_TAGS = [
   { value: 'limited',     label: 'Limited',      color: '#a05a20', bg: '#fdf5ec',  emoji: '⏳' },
 ];
 
-// ── Tag filter options (All + every tag) used in ProductsPanel filter bar ──
 const TAG_FILTER_OPTIONS = [
   { value: '', label: 'All Products' },
   ...PRODUCT_TAGS.map(t => ({ value: t.value, label: t.label, emoji: t.emoji })),
@@ -122,7 +120,6 @@ function DropZone({ label, accept, preview, onFile, hint }) {
   );
 }
 
-/* ─── Tag selector component ─── */
 function TagSelector({ selectedTags, onChange }) {
   const toggle = (value) => {
     const next = selectedTags.includes(value)
@@ -130,7 +127,6 @@ function TagSelector({ selectedTags, onChange }) {
       : [...selectedTags, value];
     onChange(next);
   };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: '1px', textTransform: 'uppercase', color: '#888' }}>
@@ -146,16 +142,13 @@ function TagSelector({ selectedTags, onChange }) {
               onClick={() => toggle(tag.value)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px',
-                borderRadius: 99,
+                padding: '7px 14px', borderRadius: 99,
                 border: `1.5px solid ${isSelected ? tag.color : '#e0d8d0'}`,
                 background: isSelected ? tag.bg : '#fff',
                 color: isSelected ? tag.color : '#a09080',
                 fontSize: 12, fontWeight: isSelected ? 700 : 400,
-                fontFamily: "'Jost', sans-serif",
-                cursor: 'pointer',
-                transition: 'all 0.18s ease',
-                letterSpacing: '0.3px',
+                fontFamily: "'Jost', sans-serif", cursor: 'pointer',
+                transition: 'all 0.18s ease', letterSpacing: '0.3px',
               }}
             >
               <span>{tag.emoji}</span>
@@ -171,6 +164,172 @@ function TagSelector({ selectedTags, onChange }) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── SITE SETTINGS PANEL ─── */
+function SettingsPanel({ onToast }) {
+  const fileRef = useRef();
+  const [currentLogo, setCurrentLogo] = useState(null);
+  const [preview, setPreview]         = useState(null);
+  const [file, setFile]               = useState(null);
+  const [saving, setSaving]           = useState(false);
+
+  useEffect(() => {
+    API.get('/settings')
+      .then(res => {
+        if (res.data?.logoUrl) setCurrentLogo(`${BASE_URL}${res.data.logoUrl}`);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleFile = (f) => {
+    if (!f) return;
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = e => setPreview(e.target.result);
+    reader.readAsDataURL(f);
+  };
+
+  const handleSave = async () => {
+    if (!file) return onToast('Please select a logo image first', 'error');
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('logo', file);
+      const res = await API.post('/settings/logo', fd, { headers: authFormHdr() });
+      if (res.data?.logoUrl) setCurrentLogo(`${BASE_URL}${res.data.logoUrl}`);
+      setFile(null);
+      setPreview(null);
+      onToast('Logo updated! Refresh the site to see it.');
+    } catch {
+      onToast('Failed to upload logo', 'error');
+    }
+    setSaving(false);
+  };
+
+  const handleRemove = async () => {
+    if (!window.confirm('Remove the logo?')) return;
+    try {
+      await API.delete('/settings/logo', { headers: authHdr() });
+      setCurrentLogo(null);
+      setPreview(null);
+      setFile(null);
+      onToast('Logo removed');
+    } catch {
+      onToast('Failed to remove logo', 'error');
+    }
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: '#1a1410', marginBottom: 4 }}>Site Settings</h2>
+      <p style={{ color: '#a09080', fontSize: 13, marginBottom: 36 }}>Manage your brand assets.</p>
+
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', padding: 32, maxWidth: 520 }}>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: '#1a1410', marginBottom: 6 }}>Header Logo</h3>
+        <p style={{ color: '#a09080', fontSize: 12, marginBottom: 24, lineHeight: 1.6 }}>
+          Displayed beside the brand name in the navigation. Use a PNG with transparent background for best results. Recommended height: 32–40px.
+        </p>
+
+        {/* Current logo preview */}
+        {currentLogo && !preview && (
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: '1px', textTransform: 'uppercase', color: '#888', display: 'block', marginBottom: 10 }}>Current Logo</label>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 16,
+              padding: '16px 24px', borderRadius: 10,
+              background: '#0a0a0a', border: '1px solid #222',
+            }}>
+              <img src={currentLogo} alt="Current logo" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
+              <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 17, color: '#fff', letterSpacing: '0.5px' }}>Organishi</span>
+            </div>
+            <button
+              onClick={handleRemove}
+              style={{
+                display: 'block', marginTop: 10,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#ef4444', fontSize: 12, fontFamily: "'Jost', sans-serif",
+                padding: 0,
+              }}
+            >
+              Remove logo
+            </button>
+          </div>
+        )}
+
+        {/* Upload new */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: '1px', textTransform: 'uppercase', color: '#888', display: 'block', marginBottom: 8 }}>
+            {currentLogo ? 'Replace Logo' : 'Upload Logo'}
+          </label>
+          <div
+            onClick={() => fileRef.current.click()}
+            style={{
+              border: '2px dashed #e0d8d0', borderRadius: 8, padding: '24px 16px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 8, cursor: 'pointer', background: '#faf8f5', transition: 'border 0.18s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = '#B07D4A'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = '#e0d8d0'}
+          >
+            {preview ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                {/* Preview on dark bg so it looks like the actual header */}
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 12,
+                  padding: '12px 20px', borderRadius: 8, background: '#0a0a0a',
+                }}>
+                  <img src={preview} alt="Preview" style={{ height: 30, width: 'auto', objectFit: 'contain' }} />
+                  <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 16, color: '#fff', letterSpacing: '0.5px' }}>Organishi</span>
+                </div>
+                <span style={{ fontSize: 11, color: '#B07D4A' }}>Looks good? Click Save below.</span>
+              </div>
+            ) : (
+              <>
+                <Upload size={22} color="#c0b0a0" />
+                <span style={{ fontSize: 12, color: '#b0a090', textAlign: 'center' }}>Click to choose a PNG, SVG, or WebP</span>
+              </>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/svg+xml,image/webp,image/jpeg"
+              onChange={e => handleFile(e.target.files[0])}
+              style={{ display: 'none' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={handleSave}
+            disabled={saving || !file}
+            style={{
+              flex: 1, padding: '13px',
+              background: saving || !file ? '#c8b8a8' : '#1a1410',
+              color: '#fff', border: 'none', borderRadius: 8,
+              cursor: saving || !file ? 'not-allowed' : 'pointer',
+              fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500,
+            }}
+          >
+            {saving ? 'Saving...' : 'Save Logo'}
+          </button>
+          {preview && (
+            <button
+              onClick={() => { setPreview(null); setFile(null); }}
+              style={{
+                padding: '13px 18px', background: '#f5f0ec',
+                color: '#888', border: 'none', borderRadius: 8,
+                cursor: 'pointer', fontFamily: "'Jost', sans-serif", fontSize: 13,
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -199,7 +358,6 @@ function Dashboard({ products, slides, categories }) {
           </div>
         ))}
       </div>
-
       {slides.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid #f5f0ec' }}>
@@ -277,7 +435,6 @@ function CategoriesPanel({ categories, onRefresh, onToast }) {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (imgFile) fd.append('image', imgFile);
-      
       if (editing) {
         await API.put(`/categories/${editing._id}`, fd, { headers: authFormHdr() });
         onToast('Category updated');
@@ -419,10 +576,7 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
   const [editing, setEditing]   = useState(null);
   const [loading, setLoading]   = useState(false);
   const [deleting, setDeleting] = useState(null);
-
-  // ── FIX: filterTag is now wired to the filter bar UI below ──
   const [filterTag, setFilterTag] = useState('');
-
   const emptyForm = { name: '', price: '', originalPrice: '', category: '', tags: [] };
   const [form, setForm]         = useState(emptyForm);
   const [files, setFiles]       = useState({ bottle: null, nut: null });
@@ -461,7 +615,6 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
       });
       if (files.bottle) fd.append('bottle', files.bottle);
       if (files.nut)    fd.append('nut', files.nut);
-
       if (editing) {
         await API.put(`/products/${editing._id}`, fd, { headers: authFormHdr() });
         onToast('Product updated');
@@ -485,12 +638,10 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
     setDeleting(null);
   };
 
-  // ── FIX: filter applied client-side against the products array ──
   const filteredProducts = filterTag
     ? products.filter(p => Array.isArray(p.tags) && p.tags.includes(filterTag))
     : products;
 
-  // Count per tag for badge numbers
   const tagCounts = TAG_FILTER_OPTIONS.reduce((acc, opt) => {
     acc[opt.value] = opt.value === ''
       ? products.length
@@ -500,7 +651,6 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
 
   return (
     <div>
-      {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: '#1a1410', marginBottom: 4 }}>Products</h2>
@@ -514,47 +664,29 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
         </button>
       </div>
 
-      {/* ── FIX: Tag filter bar ── */}
-      <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: 8,
-        marginBottom: 24,
-        padding: '14px 16px',
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f0ece8',
-      }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, padding: '14px 16px', background: '#fff', borderRadius: 10, border: '1px solid #f0ece8' }}>
         {TAG_FILTER_OPTIONS.map(opt => {
           const isActive = filterTag === opt.value;
           const count    = tagCounts[opt.value] || 0;
-          const tagMeta  = PRODUCT_TAGS.find(t => t.value === opt.value);
           return (
             <button
               key={opt.value}
               onClick={() => setFilterTag(opt.value)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 14px',
-                borderRadius: 99,
+                padding: '6px 14px', borderRadius: 99,
                 border: `1.5px solid ${isActive ? '#1a1410' : '#e0d8d0'}`,
                 background: isActive ? '#1a1410' : '#faf8f5',
                 color: isActive ? '#fff' : '#6a5a4a',
                 fontSize: 12, fontWeight: isActive ? 700 : 400,
-                fontFamily: "'Jost', sans-serif",
-                cursor: 'pointer',
-                transition: 'all 0.18s ease',
-                letterSpacing: '0.3px',
+                fontFamily: "'Jost', sans-serif", cursor: 'pointer',
+                transition: 'all 0.18s ease', letterSpacing: '0.3px',
                 opacity: count === 0 && opt.value !== '' ? 0.45 : 1,
               }}
             >
               {opt.emoji && <span>{opt.emoji}</span>}
               {opt.label}
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                minWidth: 18, height: 18, borderRadius: 99,
-                background: isActive ? 'rgba(255,255,255,0.2)' : '#f0ece8',
-                color: isActive ? '#fff' : '#a09080',
-                fontSize: 10, fontWeight: 700, padding: '0 4px',
-              }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, borderRadius: 99, background: isActive ? 'rgba(255,255,255,0.2)' : '#f0ece8', color: isActive ? '#fff' : '#a09080', fontSize: 10, fontWeight: 700, padding: '0 4px' }}>
                 {count}
               </span>
             </button>
@@ -562,7 +694,6 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
         })}
       </div>
 
-      {/* ── Add / Edit form ── */}
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', padding: 28, marginBottom: 28 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -596,16 +727,13 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
         </div>
       )}
 
-      {/* ── Product grid ── */}
       {filteredProducts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b0a090', fontFamily: "'Jost', sans-serif" }}>
           <Package size={40} color="#d0c8c0" style={{ marginBottom: 12 }} />
           <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: '#5a4a3a', marginBottom: 6 }}>No products found</p>
-          <p style={{ fontSize: 13 }}>
-            {filterTag ? `No products tagged "${PRODUCT_TAGS.find(t => t.value === filterTag)?.label}". Assign this tag when editing a product.` : 'Add your first product above.'}
-          </p>
+          <p style={{ fontSize: 13 }}>{filterTag ? `No products tagged "${PRODUCT_TAGS.find(t => t.value === filterTag)?.label}". Assign this tag when editing a product.` : 'Add your first product above.'}</p>
           {filterTag && (
-            <button onClick={() => setFilterTag('')} style={{ marginTop: 16, padding: '9px 22px', borderRadius: 99, background: '#1a1410', color: '#fff', border: 'none', fontSize: 12, fontWeight: 600, fontFamily: "'Jost', sans-serif", cursor: 'pointer', letterSpacing: '0.5px' }}>
+            <button onClick={() => setFilterTag('')} style={{ marginTop: 16, padding: '9px 22px', borderRadius: 99, background: '#1a1410', color: '#fff', border: 'none', fontSize: 12, fontWeight: 600, fontFamily: "'Jost', sans-serif", cursor: 'pointer' }}>
               Show all products
             </button>
           )}
@@ -615,11 +743,7 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
           {filteredProducts.map(p => (
             <div key={p._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
               <div style={{ height: 160, background: '#faf8f5', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {p.bottleImg
-                  ? <img src={`${BASE_URL}${p.bottleImg}`} alt="" style={{ height: '100%', width: '100%', objectFit: 'contain', padding: 16 }} />
-                  : <Package size={36} color="#d0c8c0" />
-                }
-                {/* ── Tag chips on the card ── */}
+                {p.bottleImg ? <img src={`${BASE_URL}${p.bottleImg}`} alt="" style={{ height: '100%', width: '100%', objectFit: 'contain', padding: 16 }} /> : <Package size={36} color="#d0c8c0" />}
                 {Array.isArray(p.tags) && p.tags.length > 0 && (
                   <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {p.tags.slice(0, 3).map(tv => {
@@ -692,7 +816,6 @@ function SlidesPanel({ slides, onRefresh, onToast }) {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (mediaFile) fd.append('media', mediaFile);
-      
       if (editing) {
         await API.put(`/hero-slides/${editing._id}`, fd, { headers: authFormHdr() });
         onToast('Slide updated');
@@ -701,7 +824,7 @@ function SlidesPanel({ slides, onRefresh, onToast }) {
         onToast('Slide added');
       }
       close(); onRefresh();
-    } catch (err) { onToast('Error saving slide', 'error'); }
+    } catch { onToast('Error saving slide', 'error'); }
     setLoading(false);
   };
 
@@ -731,7 +854,6 @@ function SlidesPanel({ slides, onRefresh, onToast }) {
           <Plus size={15} /> Add Slide
         </button>
       </div>
-
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', padding: 28, marginBottom: 28 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
@@ -746,7 +868,6 @@ function SlidesPanel({ slides, onRefresh, onToast }) {
           </button>
         </div>
       )}
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
         {slides.map(slide => (
           <div key={slide._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
@@ -807,6 +928,7 @@ export default function Admin() {
     { id: 'products',   label: 'Products',    icon: Package },
     { id: 'slides',     label: 'Hero Slides', icon: Image },
     { id: 'homepage',   label: 'Homepage',    icon: BarChart2 },
+    { id: 'settings',   label: 'Settings',    icon: Settings },
   ];
 
   return (
@@ -838,6 +960,7 @@ export default function Admin() {
           {page === 'products'   && <ProductsPanel   products={products}  categories={categories} onRefresh={fetchAll} onToast={showToast} />}
           {page === 'slides'     && <SlidesPanel     slides={slides}      onRefresh={fetchAll} onToast={showToast} />}
           {page === 'homepage'   && <HomepageManager />}
+          {page === 'settings'   && <SettingsPanel   onToast={showToast} />}
         </main>
       </div>
     </>
