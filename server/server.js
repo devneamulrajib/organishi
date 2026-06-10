@@ -156,7 +156,6 @@ const PromoBanner = mongoose.model('PromoBanner', new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 }));
 
-// ── NEW: Site Settings Model ─────────────────────────────────────
 const SiteSettings = mongoose.model('SiteSettings', new mongoose.Schema({
   logoUrl: { type: String, default: null },
 }, { timestamps: true }));
@@ -420,10 +419,13 @@ app.post('/api/homepage/config', auth, async (req, res) => {
   }
 });
 
+// ── Pinned Categories Routes ─────────────────────────────────────
 app.get('/api/homepage/pinned-categories', async (req, res) => {
-  try { res.json(await PinnedCategory.find().sort({ order: 1 })); }
-  catch (err) {
-    console.error('GET /api/homepage/pinned-categories error:', err.message);
+  try {
+    const pinned = await PinnedCategory.find().sort({ order: 1 });
+    res.json(pinned);
+  } catch (err) {
+    console.error('GET /api/homepage/pinned-categories error:', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });
@@ -431,17 +433,36 @@ app.get('/api/homepage/pinned-categories', async (req, res) => {
 app.post('/api/homepage/pinned-categories', auth, async (req, res) => {
   try {
     const incoming = req.body;
-    if (!Array.isArray(incoming)) return res.status(400).json({ error: 'Expected array' });
-    const names = incoming.map(c => c.name);
+
+    if (!Array.isArray(incoming)) {
+      return res.status(400).json({ error: 'Expected an array of categories' });
+    }
+
+    // ── FIX: sanitise numeric fields before touching the DB ──────
+    const sanitised = incoming.map((cat, i) => ({
+      ...cat,
+      // gridCols may arrive as "4 columns" string → parse to number
+      gridCols:     parseInt(cat.gridCols, 10)     || 4,
+      productLimit: parseInt(cat.productLimit, 10) || 6,
+      order:        i,
+    }));
+
+    const names = sanitised.map(c => c.name);
+
+    // Remove categories that are no longer pinned
     await PinnedCategory.deleteMany({ name: { $nin: names } });
-    const ops = incoming.map((cat, i) =>
+
+    // Upsert each category
+    const ops = sanitised.map((cat) =>
       PinnedCategory.findOneAndUpdate(
         { name: cat.name },
-        { ...cat, order: i },
+        { $set: cat },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       )
     );
-    res.json(await Promise.all(ops));
+
+    const results = await Promise.all(ops);
+    res.json(results);
   } catch (err) {
     console.error('POST /api/homepage/pinned-categories error:', err.message, err.stack);
     res.status(500).json({ error: err.message || String(err) });

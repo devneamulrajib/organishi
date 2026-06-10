@@ -8,24 +8,27 @@ import {
 import { BASE_URL } from "../api";
 const API = BASE_URL;
 
-const getToken = () => localStorage.getItem("token");
-const authHdr  = () => ({ Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" });
+const getToken    = () => localStorage.getItem("token");
+// FIX 1: authHdr must NOT set Content-Type for JSON — fetch sets it automatically
+//         when you pass body: JSON.stringify(). Setting it manually can cause issues.
+const authHdr     = () => ({ Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" });
+// FIX 2: authFormHdr must NOT include Content-Type — browser sets it with boundary for multipart
 const authFormHdr = () => ({ Authorization: `Bearer ${getToken()}` });
 
 const SECTION_TYPES = [
-  { value: 'hero',                label: 'Hero Banner',         Icon: Monitor },
-  { value: 'featured_categories', label: 'Featured Categories', Icon: Grid },
-  { value: 'new_arrivals',        label: 'New Arrivals',        Icon: Sparkles },
-  { value: 'trending',            label: 'Trending Products',   Icon: TrendingUp },
-  { value: 'all_products',        label: 'All Products Grid',   Icon: ShoppingBag },
-  { value: 'pinned_categories',   label: 'Pinned Categories',   Icon: Pin },
-  { value: 'single_banner',       label: 'Single Banner',       Icon: Image },
-  { value: 'multi_banner',        label: 'Multi Banner Row',    Icon: Layers },
-  { value: 'slideshow_banner',    label: 'Slideshow',           Icon: Film },
-  { value: 'promo_banner',        label: 'Promo Banner',        Icon: LayoutGrid },
+  { value: "hero",                label: "Hero Banner",         Icon: Monitor    },
+  { value: "featured_categories", label: "Featured Categories", Icon: Grid       },
+  { value: "new_arrivals",        label: "New Arrivals",        Icon: Sparkles   },
+  { value: "trending",            label: "Trending Products",   Icon: TrendingUp },
+  { value: "all_products",        label: "All Products Grid",   Icon: ShoppingBag},
+  { value: "pinned_categories",   label: "Pinned Categories",   Icon: Pin        },
+  { value: "single_banner",       label: "Single Banner",       Icon: Image      },
+  { value: "multi_banner",        label: "Multi Banner Row",    Icon: Layers     },
+  { value: "slideshow_banner",    label: "Slideshow",           Icon: Film       },
+  { value: "promo_banner",        label: "Promo Banner",        Icon: LayoutGrid },
 ];
 
-/* ── shared atoms ─────────────────────────────────────────────────────────── */
+/* ── Shared atoms ─────────────────────────────────────────────── */
 function Label({ children }) {
   return (
     <label style={{
@@ -67,7 +70,10 @@ function FieldSelect({ label, children, ...props }) {
           background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 6,
           padding: "9px 13px", fontSize: 13, color: "#1a1a1a", outline: "none",
           fontFamily: "'Jost', sans-serif", cursor: "pointer",
+          width: "100%", boxSizing: "border-box",
         }}
+        onFocus={e => (e.target.style.borderColor = "#B07D4A")}
+        onBlur={e  => (e.target.style.borderColor = "#e8e8e8")}
       >
         {children}
       </select>
@@ -85,7 +91,8 @@ function IconBtn({ onClick, title, danger, disabled, children }) {
         width: 32, height: 32,
         display: "flex", alignItems: "center", justifyContent: "center",
         background: danger ? "#fef2f2" : "#f5f0ec",
-        border: "none", borderRadius: 6, cursor: disabled ? "not-allowed" : "pointer",
+        border: "none", borderRadius: 6,
+        cursor: disabled ? "not-allowed" : "pointer",
         color: danger ? "#ef4444" : "#6a5a4a",
         opacity: disabled ? 0.4 : 1, flexShrink: 0,
         transition: "background 0.15s",
@@ -96,19 +103,22 @@ function IconBtn({ onClick, title, danger, disabled, children }) {
   );
 }
 
-/* ── Promo Banner Editor ─────────────────────────────────────────────────── */
+/* ── Promo Banner Editor ──────────────────────────────────────── */
 function PromoBannerEditor({ sectionId, onSaved }) {
-  const fileRef        = useRef();
-  const [banners, setBanners]     = useState([]);
-  const [loading, setLoading]     = useState(false);
+  const fileRef              = useRef();
+  const [banners,   setBanners]   = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [file, setFile]           = useState(null);
-  const [preview, setPreview]     = useState(null);
-  const [link, setLink]           = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [file,      setFile]      = useState(null);
+  const [preview,   setPreview]   = useState(null);
+  const [link,      setLink]      = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [toast, setToast]         = useState(null);
+  const [toast,     setToast]     = useState(null);
 
-  const showMsg = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+  const showMsg = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const load = () => {
     fetch(`${API}/api/promo-banners/all`, { headers: authHdr() })
@@ -122,8 +132,13 @@ function PromoBannerEditor({ sectionId, onSaved }) {
   const handleFile = f => {
     if (!f) return;
     setFile(f);
-    if (f.type.startsWith("video/")) { setPreview("video"); }
-    else { const r = new FileReader(); r.onload = e => setPreview(e.target.result); r.readAsDataURL(f); }
+    if (f.type.startsWith("video/")) {
+      setPreview("video");
+    } else {
+      const r = new FileReader();
+      r.onload  = e => setPreview(e.target.result);
+      r.readAsDataURL(f);
+    }
   };
 
   const handleUpload = async () => {
@@ -132,7 +147,7 @@ function PromoBannerEditor({ sectionId, onSaved }) {
     try {
       const fd = new FormData();
       if (file) fd.append("media", file);
-      fd.append("link", link);
+      fd.append("link",   link);
       fd.append("active", "true");
 
       const url    = editingId ? `${API}/api/promo-banners/${editingId}` : `${API}/api/promo-banners`;
@@ -151,7 +166,8 @@ function PromoBannerEditor({ sectionId, onSaved }) {
     setLoading(true);
     try {
       await fetch(`${API}/api/promo-banners/${id}`, { method: "DELETE", headers: authHdr() });
-      showMsg("Deleted"); load();
+      showMsg("Deleted");
+      load();
     } catch { showMsg("Delete failed", "error"); }
     setLoading(false);
   };
@@ -160,12 +176,14 @@ function PromoBannerEditor({ sectionId, onSaved }) {
     setEditingId(b._id);
     setLink(b.link || "");
     setFile(null);
-    setPreview(b.mediaType === "video" ? "video" : `${API}${b.mediaUrl}`);
+    // FIX 3: mediaUrl is already a full Cloudinary URL — don't prepend API base
+    setPreview(b.mediaType === "video" ? "video" : b.mediaUrl);
   };
 
   const toggleActive = async b => {
     const fd = new FormData();
-    fd.append("active", !b.active); fd.append("link", b.link || "");
+    fd.append("active", String(!b.active));
+    fd.append("link",   b.link || "");
     await fetch(`${API}/api/promo-banners/${b._id}`, { method: "PUT", headers: authFormHdr(), body: fd });
     load();
   };
@@ -173,7 +191,13 @@ function PromoBannerEditor({ sectionId, onSaved }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {toast && (
-        <div style={{ padding: "10px 14px", borderRadius: 8, background: toast.type === "error" ? "#fef2f2" : "#f0fdf4", border: `1px solid ${toast.type === "error" ? "#fca5a5" : "#bbf7d0"}`, fontSize: 12, color: toast.type === "error" ? "#ef4444" : "#16a34a", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          padding: "10px 14px", borderRadius: 8,
+          background: toast.type === "error" ? "#fef2f2" : "#f0fdf4",
+          border: `1px solid ${toast.type === "error" ? "#fca5a5" : "#bbf7d0"}`,
+          fontSize: 12, color: toast.type === "error" ? "#ef4444" : "#16a34a",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
           <CheckCircle size={13} /> {toast.msg}
         </div>
       )}
@@ -189,24 +213,26 @@ function PromoBannerEditor({ sectionId, onSaved }) {
             border: "2px dashed #d8cfc8", borderRadius: 10, padding: "28px 20px",
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             gap: 10, cursor: "pointer", background: "#fff",
-            minHeight: preview ? 180 : 120, marginBottom: 14, overflow: "hidden", position: "relative",
-            transition: "border-color 0.18s",
+            minHeight: preview ? 180 : 120, marginBottom: 14,
+            overflow: "hidden", position: "relative", transition: "border-color 0.18s",
           }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#B07D4A"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "#d8cfc8"}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = "#B07D4A")}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = "#d8cfc8")}
         >
           {preview ? (
-            preview === "video"
-              ? <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                  <Film size={36} color="#B07D4A" />
-                  <span style={{ fontSize: 12, color: "#B07D4A" }}>Video selected — click to change</span>
-                </div>
-              : <img src={preview} alt="" style={{ maxHeight: 160, maxWidth: "100%", objectFit: "contain", borderRadius: 6 }} />
+            preview === "video" ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <Film size={36} color="#B07D4A" />
+                <span style={{ fontSize: 12, color: "#B07D4A" }}>Video selected — click to change</span>
+              </div>
+            ) : (
+              <img src={preview} alt="" style={{ maxHeight: 160, maxWidth: "100%", objectFit: "contain", borderRadius: 6 }} />
+            )
           ) : (
             <>
               <Upload size={24} color="#c0b0a0" />
               <span style={{ fontSize: 12, color: "#b0a090", textAlign: "center" }}>
-                Click to upload banner image or video<br/>
+                Click to upload banner image or video<br />
                 <span style={{ fontSize: 11, color: "#c8bdb0" }}>JPG · PNG · MP4 · WEBM — full-width, ~1920×480px recommended</span>
               </span>
             </>
@@ -214,18 +240,33 @@ function PromoBannerEditor({ sectionId, onSaved }) {
           <input ref={fileRef} type="file" accept="image/*,video/*" onChange={e => handleFile(e.target.files[0])} style={{ display: "none" }} />
         </div>
 
-        <FieldInput label="Click-through link (optional)" placeholder="/products or https://..." value={link} onChange={e => setLink(e.target.value)} style={{ marginBottom: 14 }} />
+        <FieldInput
+          label="Click-through link (optional)"
+          placeholder="/products or https://..."
+          value={link}
+          onChange={e => setLink(e.target.value)}
+          style={{ marginBottom: 14 }}
+        />
 
         <div style={{ display: "flex", gap: 10 }}>
           <button
             onClick={handleUpload}
             disabled={uploading}
-            style={{ flex: 1, padding: "11px", background: uploading ? "#c8b8a8" : "#1a1410", color: "#fff", border: "none", borderRadius: 8, cursor: uploading ? "not-allowed" : "pointer", fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500 }}
+            style={{
+              flex: 1, padding: "11px",
+              background: uploading ? "#c8b8a8" : "#1a1410",
+              color: "#fff", border: "none", borderRadius: 8,
+              cursor: uploading ? "not-allowed" : "pointer",
+              fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500,
+            }}
           >
             {uploading ? "Uploading…" : editingId ? "Update Banner" : "Upload Banner"}
           </button>
           {editingId && (
-            <button onClick={() => { setEditingId(null); setFile(null); setPreview(null); setLink(""); }} style={{ padding: "11px 18px", background: "#f5f0ec", color: "#888", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'Jost', sans-serif", fontSize: 13 }}>
+            <button
+              onClick={() => { setEditingId(null); setFile(null); setPreview(null); setLink(""); }}
+              style={{ padding: "11px 18px", background: "#f5f0ec", color: "#888", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'Jost', sans-serif", fontSize: 13 }}
+            >
               Cancel
             </button>
           )}
@@ -238,11 +279,19 @@ function PromoBannerEditor({ sectionId, onSaved }) {
           {banners.map(b => (
             <div key={b._id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #f0ece8", overflow: "hidden" }}>
               <div style={{ height: 90, background: "#f0ece8", position: "relative", overflow: "hidden" }}>
-                {b.mediaType === "video"
-                  ? <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1410" }}><Film size={28} color="#666" /></div>
-                  : <img src={`${API}${b.mediaUrl}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                }
-                <div style={{ position: "absolute", top: 8, left: 8, background: b.active ? "#16a34a" : "#999", color: "#fff", fontSize: 10, padding: "2px 8px", borderRadius: 99, letterSpacing: 1 }}>
+                {b.mediaType === "video" ? (
+                  <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1410" }}>
+                    <Film size={28} color="#666" />
+                  </div>
+                ) : (
+                  // FIX 3: mediaUrl is already a full Cloudinary URL — no API prefix
+                  <img src={b.mediaUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                )}
+                <div style={{
+                  position: "absolute", top: 8, left: 8,
+                  background: b.active ? "#16a34a" : "#999",
+                  color: "#fff", fontSize: 10, padding: "2px 8px", borderRadius: 99, letterSpacing: 1,
+                }}>
                   {b.active ? "LIVE" : "HIDDEN"}
                 </div>
               </div>
@@ -250,9 +299,11 @@ function PromoBannerEditor({ sectionId, onSaved }) {
                 <span style={{ flex: 1, fontSize: 12, color: "#b0a090", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {b.link || "(no link)"}
                 </span>
-                <IconBtn onClick={() => toggleActive(b)} title={b.active ? "Hide" : "Show"}>{b.active ? <Eye size={13}/> : <EyeOff size={13}/>}</IconBtn>
-                <IconBtn onClick={() => startEdit(b)} title="Edit"><Edit2 size={13}/></IconBtn>
-                <IconBtn danger onClick={() => handleDelete(b._id)} disabled={loading} title="Delete"><Trash2 size={13}/></IconBtn>
+                <IconBtn onClick={() => toggleActive(b)} title={b.active ? "Hide" : "Show"}>
+                  {b.active ? <Eye size={13} /> : <EyeOff size={13} />}
+                </IconBtn>
+                <IconBtn onClick={() => startEdit(b)} title="Edit"><Edit2 size={13} /></IconBtn>
+                <IconBtn danger onClick={() => handleDelete(b._id)} disabled={loading} title="Delete"><Trash2 size={13} /></IconBtn>
               </div>
             </div>
           ))}
@@ -262,7 +313,7 @@ function PromoBannerEditor({ sectionId, onSaved }) {
   );
 }
 
-/* ── Banner editors ───────────────────────────────────────────────────────── */
+/* ── Banner editors ───────────────────────────────────────────── */
 function SingleBannerEditor({ data, onChange }) {
   const upd = (k, v) => onChange({ ...data, [k]: v });
   return (
@@ -278,7 +329,14 @@ function SingleBannerEditor({ data, onChange }) {
           <button
             type="button"
             onClick={() => upd("isActive", !data.isActive)}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", background: data.isActive !== false ? "#f0fdf4" : "#faf8f5", border: `1px solid ${data.isActive !== false ? "#bbf7d0" : "#e8e8e8"}`, borderRadius: 6, cursor: "pointer", fontSize: 12, color: data.isActive !== false ? "#16a34a" : "#888", fontFamily: "'Jost', sans-serif" }}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "9px 13px",
+              background: data.isActive !== false ? "#f0fdf4" : "#faf8f5",
+              border: `1px solid ${data.isActive !== false ? "#bbf7d0" : "#e8e8e8"}`,
+              borderRadius: 6, cursor: "pointer", fontSize: 12,
+              color: data.isActive !== false ? "#16a34a" : "#888",
+              fontFamily: "'Jost', sans-serif",
+            }}
           >
             {data.isActive !== false ? <Eye size={13} /> : <EyeOff size={13} />}
             {data.isActive !== false ? "Active" : "Inactive"}
@@ -302,7 +360,13 @@ function MultiBannerEditor({ banners, onChange, interval, onIntervalChange }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {onIntervalChange && (
-        <FieldInput label="Slideshow interval (ms)" type="number" min={1000} step={500} value={interval || 4000} onChange={e => onIntervalChange(e.target.value)} style={{ maxWidth: 160 }} />
+        <FieldInput
+          label="Slideshow interval (ms)"
+          type="number" min={1000} step={500}
+          value={interval || 4000}
+          onChange={e => onIntervalChange(e.target.value)}
+          style={{ maxWidth: 160 }}
+        />
       )}
       {banners.length === 0 && (
         <div style={{ padding: "24px", textAlign: "center", color: "#b0a090", fontSize: 13, background: "#faf8f5", borderRadius: 8 }}>
@@ -329,7 +393,12 @@ function MultiBannerEditor({ banners, onChange, interval, onIntervalChange }) {
       ))}
       <button
         onClick={add}
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", background: "#f5f0ec", border: "1px dashed #d0c8c0", borderRadius: 8, cursor: "pointer", fontSize: 12, color: "#6a5a4a", fontFamily: "'Jost', sans-serif" }}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          padding: "10px", background: "#f5f0ec", border: "1px dashed #d0c8c0",
+          borderRadius: 8, cursor: "pointer", fontSize: 12, color: "#6a5a4a",
+          fontFamily: "'Jost', sans-serif",
+        }}
       >
         <Plus size={14} /> Add Banner
       </button>
@@ -337,35 +406,91 @@ function MultiBannerEditor({ banners, onChange, interval, onIntervalChange }) {
   );
 }
 
-/* ── Pinned Category editor ───────────────────────────────────────────────── */
+/* ── Pinned Category editor card ──────────────────────────────── */
 function PinnedCatEditor({ cat, onChange, onUnpin }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #f0ece8", overflow: "hidden" }}>
-      <div style={{ padding: "12px 16px", background: "#faf8f5", borderBottom: "1px solid #f0ece8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #f0ece8", overflow: "hidden", marginBottom: 12 }}>
+      <div style={{
+        padding: "12px 16px", background: "#faf8f5",
+        borderBottom: "1px solid #f0ece8",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Pin size={13} color="#B07D4A" />
           <span style={{ fontWeight: 500, fontSize: 14, color: "#1a1410" }}>{cat.name}</span>
         </div>
-        <button onClick={onUnpin} style={{ fontSize: 11, color: "#ef4444", background: "#fef2f2", border: "none", borderRadius: 5, padding: "4px 10px", cursor: "pointer", fontFamily: "'Jost', sans-serif" }}>Unpin</button>
+        <button
+          onClick={onUnpin}
+          style={{
+            fontSize: 11, color: "#ef4444", background: "#fef2f2",
+            border: "none", borderRadius: 5, padding: "4px 10px",
+            cursor: "pointer", fontFamily: "'Jost', sans-serif",
+          }}
+        >
+          Unpin
+        </button>
       </div>
+
       <div style={{ padding: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <FieldInput label="Display Name"        value={cat.displayName  || ""} onChange={e => onChange({ displayName:  e.target.value })} />
-        <FieldInput label="Label (above title)"  placeholder="Featured Category" value={cat.label || ""} onChange={e => onChange({ label: e.target.value })} />
-        <FieldInput label="Description"          value={cat.description  || ""} onChange={e => onChange({ description: e.target.value })} />
-        <FieldInput label="Emoji icon"           placeholder="🌿" style={{ maxWidth: 120 }} value={cat.icon || ""} onChange={e => onChange({ icon: e.target.value })} />
-        <FieldInput label="Products to show"     type="number" min={2} max={24} value={cat.productLimit || 6} onChange={e => onChange({ productLimit: Number(e.target.value) })} />
-        <FieldSelect label="Grid columns" value={cat.gridCols || 4} onChange={e => onChange({ gridCols: Number(e.target.value) })}>
-          {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} columns</option>)}
+        <FieldInput
+          label="Display Name"
+          value={cat.displayName || ""}
+          placeholder={cat.name}
+          onChange={e => onChange({ displayName: e.target.value })}
+        />
+        <FieldInput
+          label="Label (above title)"
+          placeholder="Featured Category"
+          value={cat.label || ""}
+          onChange={e => onChange({ label: e.target.value })}
+        />
+        <FieldInput
+          label="Description"
+          value={cat.description || ""}
+          onChange={e => onChange({ description: e.target.value })}
+        />
+        <FieldInput
+          label="Emoji icon"
+          placeholder="🌿"
+          style={{ maxWidth: 120 }}
+          value={cat.icon || ""}
+          onChange={e => onChange({ icon: e.target.value })}
+        />
+
+        {/* FIX 4: productLimit stored as Number, not string */}
+        <FieldInput
+          label="Products to show"
+          type="number" min={2} max={24}
+          value={cat.productLimit || 6}
+          onChange={e => onChange({ productLimit: parseInt(e.target.value, 10) || 6 })}
+        />
+
+        {/* FIX 4: gridCols stored as Number via parseInt, option values are plain numbers */}
+        <FieldSelect
+          label="Grid columns"
+          value={cat.gridCols || 4}
+          onChange={e => onChange({ gridCols: parseInt(e.target.value, 10) || 4 })}
+        >
+          <option value={2}>2 columns</option>
+          <option value={3}>3 columns</option>
+          <option value={4}>4 columns</option>
+          <option value={5}>5 columns</option>
         </FieldSelect>
+
         <div style={{ gridColumn: "1 / -1" }}>
-          <FieldInput label="Banner Image URL" placeholder="https://..." value={cat.bannerImage || ""} onChange={e => onChange({ bannerImage: e.target.value })} />
+          <FieldInput
+            label="Banner Image URL"
+            placeholder="https://..."
+            value={cat.bannerImage || ""}
+            onChange={e => onChange({ bannerImage: e.target.value })}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Main component ───────────────────────────────────────────────────────── */
+/* ── Main HomepageManager ─────────────────────────────────────── */
 export default function HomepageManager() {
   const [sections,      setSections]      = useState([]);
   const [pinnedCats,    setPinnedCats]    = useState([]);
@@ -376,20 +501,36 @@ export default function HomepageManager() {
   const [expandedId,    setExpandedId]    = useState(null);
   const [addingSection, setAddingSection] = useState(false);
 
+  // FIX 5: fetch /categories/all (auth) so ALL categories appear, not just active ones
   useEffect(() => {
     Promise.all([
       fetch(`${API}/api/homepage/config`).then(r => r.json()),
       fetch(`${API}/api/homepage/pinned-categories`).then(r => r.json()),
-      fetch(`${API}/api/categories`).then(r => r.json()),
-    ]).then(([config, pinned, cats]) => {
-      setSections(config?.sections || []);
-      setPinnedCats(Array.isArray(pinned) ? pinned : []);
-      setAllCategories(Array.isArray(cats) ? cats : []);
-    }).catch(() => {});
+      fetch(`${API}/api/categories/all`, { headers: authHdr() }).then(r => r.json()),
+    ])
+      .then(([config, pinned, cats]) => {
+        setSections(config?.sections || []);
+
+        // FIX 6: normalise numeric fields when loading from DB
+        const normPinned = (Array.isArray(pinned) ? pinned : []).map(p => ({
+          ...p,
+          gridCols:     parseInt(p.gridCols,     10) || 4,
+          productLimit: parseInt(p.productLimit, 10) || 6,
+        }));
+        setPinnedCats(normPinned);
+        setAllCategories(Array.isArray(cats) ? cats : []);
+      })
+      .catch(err => {
+        console.error("HomepageManager load error:", err);
+      });
   }, []);
 
-  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3200); };
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3200);
+  };
 
+  /* ── Section layout helpers ─────────────────────────────────── */
   const moveSection = (index, dir) => {
     const arr = [...sections];
     const to  = index + dir;
@@ -399,15 +540,18 @@ export default function HomepageManager() {
     setSections([...arr]);
   };
 
-  const toggleSection = id => setSections(sections.map(s => s.id === id ? { ...s, isVisible: !s.isVisible } : s));
-  const removeSection = id => setSections(sections.filter(s => s.id !== id));
+  const toggleSection = id =>
+    setSections(sections.map(s => s.id === id ? { ...s, isVisible: !s.isVisible } : s));
+
+  const removeSection = id =>
+    setSections(sections.filter(s => s.id !== id));
 
   const addSection = type => {
     const newSection = {
-      id: `${type}_${Date.now()}`,
+      id:          `${type}_${Date.now()}`,
       type,
-      order: sections.length + 1,
-      isVisible: true,
+      order:       sections.length + 1,
+      isVisible:   true,
       bannerData:  type === "single_banner" ? { isActive: true } : undefined,
       bannersData: ["multi_banner", "slideshow_banner"].includes(type) ? [] : undefined,
       interval:    type === "slideshow_banner" ? 4000 : undefined,
@@ -417,73 +561,169 @@ export default function HomepageManager() {
     setAddingSection(false);
   };
 
-  const updateSection = (id, updates) => setSections(sections.map(s => s.id === id ? { ...s, ...updates } : s));
+  const updateSection = (id, updates) =>
+    setSections(sections.map(s => s.id === id ? { ...s, ...updates } : s));
 
   const saveLayout = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/api/homepage/config`, { method: "POST", headers: authHdr(), body: JSON.stringify({ sections }) });
-      if (!res.ok) throw new Error("Save failed");
+      const res = await fetch(`${API}/api/homepage/config`, {
+        method: "POST",
+        headers: authHdr(),
+        body: JSON.stringify({ sections }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Save failed");
+      }
       showToast("Layout saved!");
     } catch (e) { showToast(e.message, "error"); }
     setSaving(false);
   };
 
+  /* ── Pinned category helpers ─────────────────────────────────── */
   const pinCategory = cat => {
     const name = cat.name || cat;
     if (pinnedCats.find(c => c.name === name)) return;
-    setPinnedCats([...pinnedCats, { name, displayName: name, label: "Featured Category", description: "", productLimit: 6, gridCols: 4, icon: "", bannerImage: "", _id: Date.now().toString() }]);
+    setPinnedCats([...pinnedCats, {
+      name,
+      displayName:  name,
+      label:        "Featured Category",
+      description:  "",
+      productLimit: 6,     // number
+      gridCols:     4,     // number
+      icon:         "",
+      bannerImage:  "",
+      _id:          Date.now().toString(),
+    }]);
   };
-  const unpinCategory   = name => setPinnedCats(pinnedCats.filter(c => c.name !== name));
-  const updatePinnedCat = (name, updates) => setPinnedCats(pinnedCats.map(c => c.name === name ? { ...c, ...updates } : c));
 
+  const unpinCategory = name =>
+    setPinnedCats(pinnedCats.filter(c => c.name !== name));
+
+  const updatePinnedCat = (name, updates) =>
+    setPinnedCats(pinnedCats.map(c => c.name === name ? { ...c, ...updates } : c));
+
+  // FIX 7: sanitise numeric fields before sending to backend
   const savePinnedCats = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/api/homepage/pinned-categories`, { method: "POST", headers: authHdr(), body: JSON.stringify(pinnedCats) });
-      if (!res.ok) throw new Error("Save failed");
+      const payload = pinnedCats.map((cat, i) => ({
+        ...cat,
+        gridCols:     parseInt(cat.gridCols,     10) || 4,
+        productLimit: parseInt(cat.productLimit, 10) || 6,
+        order:        i,
+      }));
+
+      const res = await fetch(`${API}/api/homepage/pinned-categories`, {
+        method:  "POST",
+        headers: authHdr(),
+        body:    JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Server error ${res.status}`);
+      }
+
       showToast("Pinned categories saved!");
-    } catch (e) { showToast(e.message, "error"); }
+    } catch (e) {
+      console.error("savePinnedCats error:", e);
+      showToast(e.message, "error");
+    }
     setSaving(false);
   };
 
   const sortedSections = [...sections].sort((a, b) => a.order - b.order);
 
   return (
-    <div style={{ minHeight: "100vh", overflowY: "auto", padding: 20 }}>
+    <div style={{ minHeight: "100vh", overflowY: "auto", padding: 20, fontFamily: "'Jost', sans-serif" }}>
+
+      {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 9999, background: "#fff", borderRadius: 8, padding: "13px 18px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", border: `1px solid ${toast.type === "error" ? "#fca5a5" : "#bbf7d0"}`, fontFamily: "'Jost', sans-serif", fontSize: 13, color: "#1a1a1a" }}>
+        <div style={{
+          position: "fixed", top: 24, right: 24, zIndex: 9999,
+          background: "#fff", borderRadius: 8, padding: "13px 18px",
+          display: "flex", alignItems: "center", gap: 10,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          border: `1px solid ${toast.type === "error" ? "#fca5a5" : "#bbf7d0"}`,
+          fontFamily: "'Jost', sans-serif", fontSize: 13, color: "#1a1a1a",
+        }}>
           <CheckCircle size={15} color={toast.type === "error" ? "#ef4444" : "#22c55e"} />
           {toast.msg}
         </div>
       )}
 
+      {/* Page header */}
       <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: "#1a1410", marginBottom: 4 }}>Homepage Manager</h2>
+        <h2 style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: 32, fontWeight: 400, color: "#1a1410", marginBottom: 4,
+        }}>
+          Homepage Manager
+        </h2>
+        <p style={{ color: "#a09080", fontSize: 13, margin: 0 }}>
+          Manage your homepage sections and pinned categories.
+        </p>
       </div>
 
+      {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 28, borderBottom: "1px solid #f0ece8" }}>
-        {["layout", "categories"].map(key => (
-          <button key={key} onClick={() => setActiveTab(key)} style={{ padding: "10px 18px", background: "none", border: "none", borderBottom: `2px solid ${activeTab === key ? "#1a1410" : "transparent"}`, color: activeTab === key ? "#1a1410" : "#a09080", fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-            {key === "layout" ? "Section Layout" : "Pinned Categories"}
+        {[
+          { key: "layout",     label: "Section Layout"     },
+          { key: "categories", label: "Pinned Categories"  },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            style={{
+              padding: "10px 18px", background: "none", border: "none",
+              borderBottom: `2px solid ${activeTab === key ? "#1a1410" : "transparent"}`,
+              color: activeTab === key ? "#1a1410" : "#a09080",
+              fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500,
+              cursor: "pointer", marginBottom: -1,
+            }}
+          >
+            {label}
           </button>
         ))}
       </div>
 
+      {/* ── SECTION LAYOUT TAB ─────────────────────────────────── */}
       {activeTab === "layout" && (
         <div>
           <button
             onClick={() => setAddingSection(!addingSection)}
-            style={{ display: "flex", alignItems: "center", gap: 7, background: "#1a1410", color: "#fff", border: "none", borderRadius: 8, padding: "11px 22px", cursor: "pointer", fontSize: 13, fontFamily: "'Jost', sans-serif" }}
+            style={{
+              display: "flex", alignItems: "center", gap: 7,
+              background: "#1a1410", color: "#fff", border: "none",
+              borderRadius: 8, padding: "11px 22px", cursor: "pointer",
+              fontSize: 13, fontFamily: "'Jost', sans-serif",
+            }}
           >
             <Plus size={14} /> {addingSection ? "Cancel" : "Add Section"}
           </button>
 
           {addingSection && (
             <div style={{ marginTop: 12, background: "#fff", borderRadius: 10, border: "1px solid #f0ece8", padding: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#a09080", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>
+                Choose a section type
+              </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {SECTION_TYPES.map(({ value, label, Icon }) => (
-                  <button key={value} onClick={() => addSection(value)} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 14px", background: "#faf8f5", border: "1px solid #e8e4e0", borderRadius: 7, cursor: "pointer", fontFamily: "'Jost', sans-serif", fontSize: 13 }}>
+                  <button
+                    key={value}
+                    onClick={() => addSection(value)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 7,
+                      padding: "9px 14px", background: "#faf8f5",
+                      border: "1px solid #e8e4e0", borderRadius: 7,
+                      cursor: "pointer", fontFamily: "'Jost', sans-serif", fontSize: 13,
+                      transition: "border-color 0.15s",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "#B07D4A")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "#e8e4e0")}
+                  >
                     <Icon size={13} color="#B07D4A" /> {label}
                   </button>
                 ))}
@@ -492,6 +732,18 @@ export default function HomepageManager() {
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 20 }}>
+            {sortedSections.length === 0 && (
+              <div style={{
+                textAlign: "center", padding: "48px 20px",
+                color: "#b0a090", background: "#fff",
+                borderRadius: 12, border: "1px solid #f0ece8",
+              }}>
+                <Monitor size={36} color="#d0c8c0" style={{ marginBottom: 10 }} />
+                <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: "#5a4a3a", marginBottom: 4 }}>No sections yet</p>
+                <p style={{ fontSize: 13 }}>Click "Add Section" to build your homepage.</p>
+              </div>
+            )}
+
             {sortedSections.map((section, index) => {
               const typeInfo     = SECTION_TYPES.find(t => t.value === section.type);
               const Icon         = typeInfo?.Icon || Monitor;
@@ -502,23 +754,50 @@ export default function HomepageManager() {
                 <div key={section.id} style={{ background: "#fff", borderRadius: 10, border: "1px solid #f0ece8", padding: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <Icon size={16} color="#B07D4A" />
-                    <div style={{ flex: 1, fontSize: 13, fontFamily: "'Jost', sans-serif", color: "#1a1410" }}>{typeInfo?.label}</div>
+                    <div style={{ flex: 1, fontSize: 13, fontFamily: "'Jost', sans-serif", color: "#1a1410", fontWeight: 500 }}>
+                      {typeInfo?.label}
+                    </div>
+                    {!section.isVisible && (
+                      <span style={{ fontSize: 10, color: "#b0a090", background: "#f5f0ec", padding: "2px 8px", borderRadius: 99, letterSpacing: 1 }}>
+                        HIDDEN
+                      </span>
+                    )}
                     <div style={{ display: "flex", gap: 5 }}>
-                      <IconBtn onClick={() => moveSection(index, -1)} disabled={index === 0}><ChevronUp size={14}/></IconBtn>
-                      <IconBtn onClick={() => moveSection(index, 1)} disabled={index === sortedSections.length - 1}><ChevronDown size={14}/></IconBtn>
-                      <IconBtn onClick={() => toggleSection(section.id)}>{section.isVisible ? <Eye size={13}/> : <EyeOff size={13}/>}</IconBtn>
-                      {isExpandable && <IconBtn onClick={() => setExpandedId(isExpanded ? null : section.id)}><Edit2 size={13}/></IconBtn>}
-                      <IconBtn danger onClick={() => removeSection(section.id)}><Trash2 size={13}/></IconBtn>
+                      <IconBtn onClick={() => moveSection(index, -1)} disabled={index === 0} title="Move up">
+                        <ChevronUp size={14} />
+                      </IconBtn>
+                      <IconBtn onClick={() => moveSection(index, 1)} disabled={index === sortedSections.length - 1} title="Move down">
+                        <ChevronDown size={14} />
+                      </IconBtn>
+                      <IconBtn onClick={() => toggleSection(section.id)} title={section.isVisible ? "Hide section" : "Show section"}>
+                        {section.isVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                      </IconBtn>
+                      {isExpandable && (
+                        <IconBtn onClick={() => setExpandedId(isExpanded ? null : section.id)} title="Edit content">
+                          <Edit2 size={13} />
+                        </IconBtn>
+                      )}
+                      <IconBtn danger onClick={() => removeSection(section.id)} title="Remove section">
+                        <Trash2 size={13} />
+                      </IconBtn>
                     </div>
                   </div>
 
                   {isExpandable && isExpanded && (
                     <div style={{ marginTop: 16, borderTop: "1px solid #eee", paddingTop: 16 }}>
                       {section.type === "single_banner" && (
-                        <SingleBannerEditor data={section.bannerData || {}} onChange={d => updateSection(section.id, { bannerData: d })} />
+                        <SingleBannerEditor
+                          data={section.bannerData || {}}
+                          onChange={d => updateSection(section.id, { bannerData: d })}
+                        />
                       )}
                       {(section.type === "multi_banner" || section.type === "slideshow_banner") && (
-                        <MultiBannerEditor banners={section.bannersData || []} onChange={b => updateSection(section.id, { bannersData: b })} interval={section.interval} onIntervalChange={v => updateSection(section.id, { interval: Number(v) })} />
+                        <MultiBannerEditor
+                          banners={section.bannersData || []}
+                          onChange={b => updateSection(section.id, { bannersData: b })}
+                          interval={section.interval}
+                          onIntervalChange={v => updateSection(section.id, { interval: Number(v) })}
+                        />
                       )}
                       {section.type === "promo_banner" && (
                         <PromoBannerEditor sectionId={section.id} onSaved={() => showToast("Banner saved!")} />
@@ -530,29 +809,106 @@ export default function HomepageManager() {
             })}
           </div>
 
-          <button onClick={saveLayout} disabled={saving} style={{ marginTop: 20, padding: "13px 32px", background: saving ? "#c8b8a8" : "#1a1410", color: "#fff", border: "none", borderRadius: 8, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500 }}>
-            {saving ? "Saving…" : "Save Layout"}
-          </button>
+          {sortedSections.length > 0 && (
+            <button
+              onClick={saveLayout}
+              disabled={saving}
+              style={{
+                marginTop: 20, padding: "13px 32px",
+                background: saving ? "#c8b8a8" : "#1a1410",
+                color: "#fff", border: "none", borderRadius: 8,
+                cursor: saving ? "not-allowed" : "pointer",
+                fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500,
+              }}
+            >
+              {saving ? "Saving…" : "Save Layout"}
+            </button>
+          )}
         </div>
       )}
 
+      {/* ── PINNED CATEGORIES TAB ──────────────────────────────── */}
       {activeTab === "categories" && (
         <div>
-          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #f0ece8", padding: 24, marginBottom: 20 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {allCategories.map(cat => (
-                <button key={cat.name} onClick={() => pinnedCats.some(c => c.name === cat.name) ? unpinCategory(cat.name) : pinCategory(cat)} style={{ padding: "8px 14px", borderRadius: 20, border: `1px solid ${pinnedCats.some(c => c.name === cat.name) ? "#B07D4A" : "#e0d8d0"}`, background: pinnedCats.some(c => c.name === cat.name) ? "#fdf3e8" : "#fff", color: pinnedCats.some(c => c.name === cat.name) ? "#B07D4A" : "#6a5a4a", cursor: "pointer", fontSize: 13, fontFamily: "'Jost', sans-serif" }}>
-                  {cat.name}
-                </button>
-              ))}
-            </div>
+          {/* Category pill selector */}
+          <div style={{
+            background: "#fff", borderRadius: 12,
+            border: "1px solid #f0ece8", padding: 20, marginBottom: 20,
+          }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "#a09080", letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>
+              Click to pin / unpin
+            </p>
+            {allCategories.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#b0a090" }}>No categories found. Add some in the Categories section first.</p>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {allCategories.map(cat => {
+                  const isPinned = pinnedCats.some(c => c.name === cat.name);
+                  return (
+                    <button
+                      key={cat._id || cat.name}
+                      onClick={() => isPinned ? unpinCategory(cat.name) : pinCategory(cat)}
+                      style={{
+                        padding: "8px 16px", borderRadius: 20,
+                        border: `1.5px solid ${isPinned ? "#B07D4A" : "#e0d8d0"}`,
+                        background: isPinned ? "#fdf3e8" : "#fff",
+                        color: isPinned ? "#B07D4A" : "#6a5a4a",
+                        cursor: "pointer", fontSize: 13,
+                        fontFamily: "'Jost', sans-serif",
+                        fontWeight: isPinned ? 600 : 400,
+                        transition: "all 0.15s",
+                        display: "flex", alignItems: "center", gap: 6,
+                      }}
+                    >
+                      {cat.icon && <span>{cat.icon}</span>}
+                      {cat.name}
+                      {isPinned && <Pin size={11} color="#B07D4A" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          {pinnedCats.map(cat => (
-            <PinnedCatEditor key={cat.name} cat={cat} onChange={u => updatePinnedCat(cat.name, u)} onUnpin={() => unpinCategory(cat.name)} />
-          ))}
-          <button onClick={savePinnedCats} disabled={saving} style={{ marginTop: 20, padding: "13px 32px", background: saving ? "#c8b8a8" : "#1a1410", color: "#fff", border: "none", borderRadius: 8, cursor: saving ? "not-allowed" : "pointer", fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500 }}>
-            {saving ? "Saving…" : "Save Pinned Categories"}
-          </button>
+
+          {/* Pinned editors */}
+          {pinnedCats.length === 0 ? (
+            <div style={{
+              textAlign: "center", padding: "60px 20px",
+              color: "#b0a090", background: "#fff",
+              borderRadius: 12, border: "1px solid #f0ece8",
+            }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>📌</div>
+              <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: "#5a4a3a", marginBottom: 6 }}>
+                No categories pinned yet
+              </p>
+              <p style={{ fontSize: 13 }}>Click a category above to feature it on the homepage.</p>
+            </div>
+          ) : (
+            pinnedCats.map(cat => (
+              <PinnedCatEditor
+                key={cat.name}
+                cat={cat}
+                onChange={u => updatePinnedCat(cat.name, u)}
+                onUnpin={() => unpinCategory(cat.name)}
+              />
+            ))
+          )}
+
+          {pinnedCats.length > 0 && (
+            <button
+              onClick={savePinnedCats}
+              disabled={saving}
+              style={{
+                marginTop: 8, padding: "13px 32px",
+                background: saving ? "#c8b8a8" : "#1a1410",
+                color: "#fff", border: "none", borderRadius: 8,
+                cursor: saving ? "not-allowed" : "pointer",
+                fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500,
+              }}
+            >
+              {saving ? "Saving…" : "Save Pinned Categories"}
+            </button>
+          )}
         </div>
       )}
     </div>
