@@ -1,42 +1,78 @@
 require('dotenv').config();
-const express   = require('express');
-const mongoose  = require('mongoose');
-const multer    = require('multer');
-const cors      = require('cors');
-const path      = require('path');
-const fs        = require('fs');
-const bcrypt    = require('bcryptjs');
-const jwt       = require('jsonwebtoken');
+const express    = require('express');
+const mongoose   = require('mongoose');
+const multer     = require('multer');
+const cors       = require('cors');
+const path       = require('path');
+const fs         = require('fs');
+const bcrypt     = require('bcryptjs');
+const jwt        = require('jsonwebtoken');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 // Import the external HomepageConfig model
 const HomepageConfig = require('./models/HomepageConfig');
 
 const app = express();
 
-// --- ADJUSTED CORS FOR PRODUCTION & LOCAL ---
+// ── Cloudinary config ────────────────────────────────────────────
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// ── CORS ─────────────────────────────────────────────────────────
 app.use(cors({
-  origin: '*', // This allows both your localhost and your Vercel domain to talk to this server
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-app.use('/uploads', express.static(uploadDir));
+// ── Multer → Cloudinary storage ──────────────────────────────────
+// Images (products, categories, banners)
+const imageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder:         'organishi',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+  },
+});
+
+// Videos + images (hero slides, promo banners)
+const mediaStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => {
+    const isVideo = file.mimetype.startsWith('video/');
+    return {
+      folder:        'organishi',
+      resource_type: isVideo ? 'video' : 'image',
+      allowed_formats: isVideo
+        ? ['mp4', 'webm', 'mov']
+        : ['jpg', 'jpeg', 'png', 'webp'],
+    };
+  },
+});
+
+const uploadImage = multer({ storage: imageStorage });
+const uploadMedia = multer({ storage: mediaStorage });
+const uploadFields = multer({ storage: imageStorage });
 
 // ── Models ──────────────────────────────────────────────────────
 const Product = mongoose.model('Product', new mongoose.Schema({
-  name:      String,
-  bgColor:   String,
-  textColor: String,
-  bottleImg: String,
-  nutImg:    String,
-  price:        Number,
+  name:          String,
+  bgColor:       String,
+  textColor:     String,
+  bottleImg:     String,
+  nutImg:        String,
+  price:         Number,
   originalPrice: Number,
-  category:  { type: String, default: '' },
-  createdAt: { type: Date, default: Date.now },
+  category:      { type: String, default: '' },
+  tags:          { type: [String], default: [] },
+  createdAt:     { type: Date, default: Date.now },
 }));
 
 const HeroSlide = mongoose.model('HeroSlide', new mongoose.Schema({
@@ -80,7 +116,6 @@ const PinnedCategory = mongoose.model('PinnedCategory', new mongoose.Schema({
   order:        { type: Number, default: 0 },
 }));
 
-// ── Promo Banner Model ──────────────────────────────────────
 const PromoBanner = mongoose.model('PromoBanner', new mongoose.Schema({
   mediaUrl:  String,
   mediaType: { type: String, enum: ['image', 'video'], default: 'image' },
@@ -101,20 +136,17 @@ const auth = (req, res, next) => {
   }
 };
 
-// ── Multer ───────────────────────────────────────────────────────
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename:    (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_')),
-  }),
-});
+// ── Helper: get URL from uploaded file ──────────────────────────
+// Cloudinary returns the full URL in req.file.path
+const fileUrl = (file) => file ? file.path : null;
 
 // ── Product Routes ───────────────────────────────────────────────
 app.get('/api/products', async (req, res) => {
   try {
-    const { sort = 'newest', category, limit = 12, page = 1 } = req.query;
+    const { sort = 'newest', category, tags, limit = 12, page = 1 } = req.query;
     const filter = {};
     if (category) filter.category = category;
+    if (tags)     filter.tags = { $in: tags.split(',') };
     let sortObj = { createdAt: -1 };
     if (sort === 'price_asc')  sortObj = { price: 1 };
     if (sort === 'price_desc') sortObj = { price: -1 };
@@ -125,16 +157,20 @@ app.get('/api/products', async (req, res) => {
     ]);
     const normalized = products.map(p => ({
       ...p,
-      image: p.bottleImg || null,
+      image:  p.bottleImg || null,
       images: p.bottleImg ? [p.bottleImg] : [],
-      isNew: new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      isNew:  new Date(p.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     }));
     res.json({ products: normalized, total, page: Number(page), limit: Number(limit) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/products', auth, upload.fields([{ name: 'bottle' }, { name: 'nut' }]), async (req, res) => {
+app.post('/api/products', auth, uploadFields.fields([{ name: 'bottle' }, { name: 'nut' }]), async (req, res) => {
   try {
+    let tags = [];
+    if (req.body.tags) {
+      try { tags = JSON.parse(req.body.tags); } catch { tags = []; }
+    }
     const product = await Product.create({
       name:          req.body.name,
       bgColor:       req.body.bgColor,
@@ -142,15 +178,20 @@ app.post('/api/products', auth, upload.fields([{ name: 'bottle' }, { name: 'nut'
       price:         req.body.price         ? parseFloat(req.body.price)         : undefined,
       originalPrice: req.body.originalPrice ? parseFloat(req.body.originalPrice) : undefined,
       category:      req.body.category      || '',
-      bottleImg: req.files['bottle'] ? `/uploads/${req.files['bottle'][0].filename}` : null,
-      nutImg:    req.files['nut']    ? `/uploads/${req.files['nut'][0].filename}`    : null,
+      tags,
+      bottleImg: req.files?.['bottle'] ? fileUrl(req.files['bottle'][0]) : null,
+      nutImg:    req.files?.['nut']    ? fileUrl(req.files['nut'][0])    : null,
     });
     res.status(201).json(product);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/products/:id', auth, upload.fields([{ name: 'bottle' }, { name: 'nut' }]), async (req, res) => {
+app.put('/api/products/:id', auth, uploadFields.fields([{ name: 'bottle' }, { name: 'nut' }]), async (req, res) => {
   try {
+    let tags = [];
+    if (req.body.tags) {
+      try { tags = JSON.parse(req.body.tags); } catch { tags = []; }
+    }
     const update = {
       name:          req.body.name,
       bgColor:       req.body.bgColor,
@@ -158,9 +199,10 @@ app.put('/api/products/:id', auth, upload.fields([{ name: 'bottle' }, { name: 'n
       price:         req.body.price         ? parseFloat(req.body.price)         : undefined,
       originalPrice: req.body.originalPrice ? parseFloat(req.body.originalPrice) : undefined,
       category:      req.body.category      || '',
+      tags,
     };
-    if (req.files?.['bottle']) update.bottleImg = `/uploads/${req.files['bottle'][0].filename}`;
-    if (req.files?.['nut'])    update.nutImg    = `/uploads/${req.files['nut'][0].filename}`;
+    if (req.files?.['bottle']) update.bottleImg = fileUrl(req.files['bottle'][0]);
+    if (req.files?.['nut'])    update.nutImg    = fileUrl(req.files['nut'][0]);
     const product = await Product.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!product) return res.status(404).json({ message: 'Not found' });
     res.json(product);
@@ -183,7 +225,7 @@ app.get('/api/hero-slides/all', auth, async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/hero-slides', auth, upload.single('media'), async (req, res) => {
+app.post('/api/hero-slides', auth, uploadMedia.single('media'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No media file uploaded' });
     const isVideo = req.file.mimetype.startsWith('video/');
@@ -194,14 +236,14 @@ app.post('/api/hero-slides', auth, upload.single('media'), async (req, res) => {
       ctaLink:   req.body.ctaLink  || '/products',
       order:     req.body.order    ? parseInt(req.body.order) : 0,
       active:    req.body.active !== 'false',
-      mediaUrl:  `/uploads/${req.file.filename}`,
+      mediaUrl:  fileUrl(req.file),
       mediaType: isVideo ? 'video' : 'image',
     });
     res.status(201).json(slide);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/hero-slides/:id', auth, upload.single('media'), async (req, res) => {
+app.put('/api/hero-slides/:id', auth, uploadMedia.single('media'), async (req, res) => {
   try {
     const update = {
       title:    req.body.title,
@@ -212,7 +254,7 @@ app.put('/api/hero-slides/:id', auth, upload.single('media'), async (req, res) =
       active:   req.body.active !== 'false',
     };
     if (req.file) {
-      update.mediaUrl  = `/uploads/${req.file.filename}`;
+      update.mediaUrl  = fileUrl(req.file);
       update.mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
     }
     const slide = await HeroSlide.findByIdAndUpdate(req.params.id, update, { new: true });
@@ -237,7 +279,7 @@ app.get('/api/categories/all', auth, async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/categories', auth, upload.single('image'), async (req, res) => {
+app.post('/api/categories', auth, uploadImage.single('image'), async (req, res) => {
   try {
     const cat = await Category.create({
       name:      req.body.name,
@@ -247,13 +289,13 @@ app.post('/api/categories', auth, upload.single('image'), async (req, res) => {
       colorDark: req.body.colorDark || '#8A5C30',
       order:     req.body.order     ? parseInt(req.body.order) : 0,
       active:    req.body.active !== 'false',
-      imageUrl:  req.file ? `/uploads/${req.file.filename}` : null,
+      imageUrl:  req.file ? fileUrl(req.file) : null,
     });
     res.status(201).json(cat);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/categories/:id', auth, upload.single('image'), async (req, res) => {
+app.put('/api/categories/:id', auth, uploadImage.single('image'), async (req, res) => {
   try {
     const update = {
       name:      req.body.name,
@@ -264,7 +306,7 @@ app.put('/api/categories/:id', auth, upload.single('image'), async (req, res) =>
       order:     req.body.order     ? parseInt(req.body.order) : 0,
       active:    req.body.active !== 'false',
     };
-    if (req.file) update.imageUrl = `/uploads/${req.file.filename}`;
+    if (req.file) update.imageUrl = fileUrl(req.file);
     const cat = await Category.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!cat) return res.status(404).json({ message: 'Not found' });
     res.json(cat);
@@ -295,7 +337,7 @@ app.post('/api/homepage/config', auth, async (req, res) => {
     );
     res.json(config);
   } catch (err) {
-    console.error("Config Save Error:", err.message);
+    console.error('Config Save Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -333,12 +375,12 @@ app.get('/api/promo-banners/all', auth, async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/promo-banners', auth, upload.single('media'), async (req, res) => {
+app.post('/api/promo-banners', auth, uploadMedia.single('media'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No media file uploaded' });
     const isVideo = req.file.mimetype.startsWith('video/');
     const banner = await PromoBanner.create({
-      mediaUrl:  `/uploads/${req.file.filename}`,
+      mediaUrl:  fileUrl(req.file),
       mediaType: isVideo ? 'video' : 'image',
       link:      req.body.link   || '',
       active:    req.body.active !== 'false',
@@ -347,14 +389,14 @@ app.post('/api/promo-banners', auth, upload.single('media'), async (req, res) =>
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/promo-banners/:id', auth, upload.single('media'), async (req, res) => {
+app.put('/api/promo-banners/:id', auth, uploadMedia.single('media'), async (req, res) => {
   try {
     const update = {
       link:   req.body.link   || '',
       active: req.body.active !== 'false',
     };
     if (req.file) {
-      update.mediaUrl  = `/uploads/${req.file.filename}`;
+      update.mediaUrl  = fileUrl(req.file);
       update.mediaType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
     }
     const banner = await PromoBanner.findByIdAndUpdate(req.params.id, update, { new: true });
@@ -383,8 +425,6 @@ app.post('/api/auth/login', async (req, res) => {
 // ── Start ─────────────────────────────────────────────────────────
 const start = async () => {
   try {
-    // Make sure process.env.MONGO_URI is set in your .env file locally
-    // AND in the Render Environment Dashboard for production
     await mongoose.connect(process.env.MONGO_URI);
     console.log('✅ MongoDB connected');
 
@@ -395,14 +435,11 @@ const start = async () => {
       console.log('👤 Admin user created');
     }
 
-    // This handles the Port for Render (process.env.PORT) and Local (5000)
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running on port ${PORT}`)
-    );
-  } catch (err) { 
-    console.error('❌ Startup error:', err.message); 
-    process.exit(1); 
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  } catch (err) {
+    console.error('❌ Startup error:', err.message);
+    process.exit(1);
   }
 };
 start();
