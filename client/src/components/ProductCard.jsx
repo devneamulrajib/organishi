@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// Importing the smart URL that switches between local and production automatically
-import { BASE_URL } from '../api'; 
 
 export default function ProductCard({ product, index = 0, badge }) {
   const [hovered, setHovered] = useState(false);
@@ -35,8 +33,14 @@ export default function ProductCard({ product, index = 0, badge }) {
   const name = product.name || product.title || product.productName || "Product";
   const price = product.price ?? product.salePrice ?? product.sellingPrice ?? 0;
   const originalPrice = product.originalPrice ?? product.comparePrice ?? product.mrp ?? null;
-  const image = product.bottleImg || product.image || product.thumbnail || product.img || "";
+  const rawImage = product.bottleImg || product.image || product.thumbnail || product.img || "";
   const category = product.category || "Fresh Product";
+
+  /* ── Smart image URL: if already absolute, use as-is; otherwise it's empty ── */
+  const image = /^https?:\/\//i.test(rawImage) || rawImage.startsWith('//')
+    ? rawImage          // Cloudinary or any full URL → use directly
+    : rawImage          // relative path or empty → just use as-is (BASE_URL handled upstream)
+  ;
 
   const discount =
     originalPrice && price
@@ -87,9 +91,9 @@ export default function ProductCard({ product, index = 0, badge }) {
           flexShrink: 0,
         }}
       >
-        {/* Product image - Updated to use BASE_URL */}
+        {/* ✅ Fixed: use image directly, no BASE_URL prepended */}
         <img
-          src={`${BASE_URL}${image}`}
+          src={image}
           alt={name}
           style={{
             width: "100%",
@@ -279,7 +283,7 @@ export default function ProductCard({ product, index = 0, badge }) {
           )}
         </div>
 
-        {/* ── Add to Cart button / Stepper ── */}
+        {/* ── Add to Cart / Stepper ── */}
         <AnimatePresence mode="wait">
           {qty === 0 ? (
             <motion.button
