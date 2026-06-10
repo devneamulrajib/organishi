@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-// Import our smart API instance and the BASE_URL for images
 import API, { BASE_URL } from './api'; 
 import HomepageManager from "./components/HomepageManager";
 import {
@@ -25,6 +24,12 @@ const PRODUCT_TAGS = [
   { value: 'best-seller', label: 'Best Seller',  color: '#7a5ab0', bg: '#f5f0fc',  emoji: '🏆' },
   { value: 'cold-press',  label: 'Cold Pressed', color: '#4a7ab0', bg: '#eef4fc',  emoji: '❄️' },
   { value: 'limited',     label: 'Limited',      color: '#a05a20', bg: '#fdf5ec',  emoji: '⏳' },
+];
+
+// ── Tag filter options (All + every tag) used in ProductsPanel filter bar ──
+const TAG_FILTER_OPTIONS = [
+  { value: '', label: 'All Products' },
+  ...PRODUCT_TAGS.map(t => ({ value: t.value, label: t.label, emoji: t.emoji })),
 ];
 
 /* ─── tiny ui atoms ─── */
@@ -326,8 +331,7 @@ function CategoriesPanel({ categories, onRefresh, onToast }) {
             <button onClick={close} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}><X size={18} /></button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-             {/* Form Inputs (Same as your original) */}
-             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <Input label="Category Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
               <Input label="Link / URL" value={form.link} onChange={e => setForm(f => ({ ...f, link: e.target.value }))} />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -376,34 +380,34 @@ function CategoriesPanel({ categories, onRefresh, onToast }) {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-          {categories.map(cat => (
-            <div key={cat._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
-              <div style={{ height: 6, background: `linear-gradient(to right, ${cat.color || '#B07D4A'}, ${cat.colorDark || '#8A5C30'})` }} />
-              <div style={{ padding: '16px 16px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 13, background: `linear-gradient(145deg, ${cat.color || '#B07D4A'}, ${cat.colorDark || '#8A5C30'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                    {cat.imageUrl ? <img src={`${BASE_URL}${cat.imageUrl}`} alt="" style={{ width: '70%', height: '70%', objectFit: 'contain' }} /> : cat.icon || '🛒'}
-                  </div>
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1410', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</div>
-                    <div style={{ fontSize: 11, color: '#b0a090', marginTop: 2 }}>Order {cat.order ?? 0}</div>
-                  </div>
+        {categories.map(cat => (
+          <div key={cat._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
+            <div style={{ height: 6, background: `linear-gradient(to right, ${cat.color || '#B07D4A'}, ${cat.colorDark || '#8A5C30'})` }} />
+            <div style={{ padding: '16px 16px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 13, background: `linear-gradient(145deg, ${cat.color || '#B07D4A'}, ${cat.colorDark || '#8A5C30'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                  {cat.imageUrl ? <img src={`${BASE_URL}${cat.imageUrl}`} alt="" style={{ width: '70%', height: '70%', objectFit: 'contain' }} /> : cat.icon || '🛒'}
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => toggleActive(cat)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', background: cat.active ? '#f0fdf4' : '#f5f5f5', border: `1px solid ${cat.active ? '#bbf7d0' : '#e8e8e8'}`, borderRadius: 6, cursor: 'pointer', fontSize: 11, color: cat.active ? '#16a34a' : '#999', fontFamily: "'Jost', sans-serif" }}>
-                    {cat.active ? <Eye size={11} /> : <EyeOff size={11} />}
-                    {cat.active ? 'Shown' : 'Hidden'}
-                  </button>
-                  <button onClick={() => openEdit(cat)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 10px', background: '#f5f0ec', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#6a5a4a', fontFamily: "'Jost', sans-serif" }}>
-                    <Edit2 size={12} /> Edit
-                  </button>
-                  <button onClick={() => handleDelete(cat._id)} disabled={deleting === cat._id} style={{ width: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#ef4444' }}>
-                    <Trash2 size={12} />
-                  </button>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: '#1a1410', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cat.name}</div>
+                  <div style={{ fontSize: 11, color: '#b0a090', marginTop: 2 }}>Order {cat.order ?? 0}</div>
                 </div>
               </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => toggleActive(cat)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', background: cat.active ? '#f0fdf4' : '#f5f5f5', border: `1px solid ${cat.active ? '#bbf7d0' : '#e8e8e8'}`, borderRadius: 6, cursor: 'pointer', fontSize: 11, color: cat.active ? '#16a34a' : '#999', fontFamily: "'Jost', sans-serif" }}>
+                  {cat.active ? <Eye size={11} /> : <EyeOff size={11} />}
+                  {cat.active ? 'Shown' : 'Hidden'}
+                </button>
+                <button onClick={() => openEdit(cat)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 10px', background: '#f5f0ec', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#6a5a4a', fontFamily: "'Jost', sans-serif" }}>
+                  <Edit2 size={12} /> Edit
+                </button>
+                <button onClick={() => handleDelete(cat._id)} disabled={deleting === cat._id} style={{ width: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#ef4444' }}>
+                  <Trash2 size={12} />
+                </button>
+              </div>
             </div>
-          ))}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -415,6 +419,8 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
   const [editing, setEditing]   = useState(null);
   const [loading, setLoading]   = useState(false);
   const [deleting, setDeleting] = useState(null);
+
+  // ── FIX: filterTag is now wired to the filter bar UI below ──
   const [filterTag, setFilterTag] = useState('');
 
   const emptyForm = { name: '', price: '', originalPrice: '', category: '', tags: [] };
@@ -479,24 +485,87 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
     setDeleting(null);
   };
 
-  const filteredProducts = filterTag ? products.filter(p => p.tags?.includes(filterTag)) : products;
+  // ── FIX: filter applied client-side against the products array ──
+  const filteredProducts = filterTag
+    ? products.filter(p => Array.isArray(p.tags) && p.tags.includes(filterTag))
+    : products;
+
+  // Count per tag for badge numbers
+  const tagCounts = TAG_FILTER_OPTIONS.reduce((acc, opt) => {
+    acc[opt.value] = opt.value === ''
+      ? products.length
+      : products.filter(p => Array.isArray(p.tags) && p.tags.includes(opt.value)).length;
+    return acc;
+  }, {});
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: '#1a1410', marginBottom: 4 }}>Products</h2>
-          <p style={{ color: '#a09080', fontSize: 13 }}>{products.length} items</p>
+          <p style={{ color: '#a09080', fontSize: 13 }}>
+            {filteredProducts.length} of {products.length} items
+            {filterTag && ` · filtered by "${PRODUCT_TAGS.find(t => t.value === filterTag)?.label}"`}
+          </p>
         </div>
         <button onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#1a1410', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 22px', cursor: 'pointer', fontSize: 12, fontWeight: 500, fontFamily: "'Jost', sans-serif" }}>
           <Plus size={15} /> Add Product
         </button>
       </div>
 
+      {/* ── FIX: Tag filter bar ── */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 8,
+        marginBottom: 24,
+        padding: '14px 16px',
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f0ece8',
+      }}>
+        {TAG_FILTER_OPTIONS.map(opt => {
+          const isActive = filterTag === opt.value;
+          const count    = tagCounts[opt.value] || 0;
+          const tagMeta  = PRODUCT_TAGS.find(t => t.value === opt.value);
+          return (
+            <button
+              key={opt.value}
+              onClick={() => setFilterTag(opt.value)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px',
+                borderRadius: 99,
+                border: `1.5px solid ${isActive ? '#1a1410' : '#e0d8d0'}`,
+                background: isActive ? '#1a1410' : '#faf8f5',
+                color: isActive ? '#fff' : '#6a5a4a',
+                fontSize: 12, fontWeight: isActive ? 700 : 400,
+                fontFamily: "'Jost', sans-serif",
+                cursor: 'pointer',
+                transition: 'all 0.18s ease',
+                letterSpacing: '0.3px',
+                opacity: count === 0 && opt.value !== '' ? 0.45 : 1,
+              }}
+            >
+              {opt.emoji && <span>{opt.emoji}</span>}
+              {opt.label}
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: 18, height: 18, borderRadius: 99,
+                background: isActive ? 'rgba(255,255,255,0.2)' : '#f0ece8',
+                color: isActive ? '#fff' : '#a09080',
+                fontSize: 10, fontWeight: 700, padding: '0 4px',
+              }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Add / Edit form ── */}
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', padding: 28, marginBottom: 28 }}>
-           {/* Product Form Content (Same as your original) */}
-           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 400, color: '#1a1410', margin: 0 }}>{editing ? 'Edit Product' : 'New Product'}</h3>
             <button onClick={close} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}><X size={18} /></button>
           </div>
@@ -527,25 +596,64 @@ function ProductsPanel({ products, categories, onRefresh, onToast }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+      {/* ── Product grid ── */}
+      {filteredProducts.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b0a090', fontFamily: "'Jost', sans-serif" }}>
+          <Package size={40} color="#d0c8c0" style={{ marginBottom: 12 }} />
+          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, color: '#5a4a3a', marginBottom: 6 }}>No products found</p>
+          <p style={{ fontSize: 13 }}>
+            {filterTag ? `No products tagged "${PRODUCT_TAGS.find(t => t.value === filterTag)?.label}". Assign this tag when editing a product.` : 'Add your first product above.'}
+          </p>
+          {filterTag && (
+            <button onClick={() => setFilterTag('')} style={{ marginTop: 16, padding: '9px 22px', borderRadius: 99, background: '#1a1410', color: '#fff', border: 'none', fontSize: 12, fontWeight: 600, fontFamily: "'Jost', sans-serif", cursor: 'pointer', letterSpacing: '0.5px' }}>
+              Show all products
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
           {filteredProducts.map(p => (
             <div key={p._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
               <div style={{ height: 160, background: '#faf8f5', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {p.bottleImg ? <img src={`${BASE_URL}${p.bottleImg}`} alt="" style={{ height: '100%', width: '100%', objectFit: 'contain', padding: 16 }} /> : <Package size={36} color="#d0c8c0" />}
+                {p.bottleImg
+                  ? <img src={`${BASE_URL}${p.bottleImg}`} alt="" style={{ height: '100%', width: '100%', objectFit: 'contain', padding: 16 }} />
+                  : <Package size={36} color="#d0c8c0" />
+                }
+                {/* ── Tag chips on the card ── */}
+                {Array.isArray(p.tags) && p.tags.length > 0 && (
+                  <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {p.tags.slice(0, 3).map(tv => {
+                      const meta = PRODUCT_TAGS.find(t => t.value === tv);
+                      return meta ? (
+                        <span key={tv} style={{ padding: '2px 8px', borderRadius: 99, background: meta.bg, color: meta.color, fontSize: 9, fontWeight: 700, letterSpacing: '0.5px', border: `1px solid ${meta.color}30` }}>
+                          {meta.emoji} {meta.label}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
               </div>
               <div style={{ padding: '14px 16px' }}>
                 <div style={{ fontWeight: 500, fontSize: 15, color: '#1a1410', marginBottom: 4 }}>{p.name}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                   <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, color: '#B07D4A' }}>${p.price}</span>
+                  {p.originalPrice && p.originalPrice > p.price && (
+                    <span style={{ fontSize: 12, color: '#b0a090', textDecoration: 'line-through' }}>${p.originalPrice}</span>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => openEdit(p)} style={{ flex: 1, padding: '8px', background: '#f5f0ec', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#6a5a4a' }}><Edit2 size={13} /> Edit</button>
-                  <button onClick={() => handleDelete(p._id)} disabled={deleting === p._id} style={{ width: 36, background: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#ef4444' }}><Trash2 size={13} /></button>
+                  <button onClick={() => openEdit(p)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px', background: '#f5f0ec', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#6a5a4a', fontFamily: "'Jost', sans-serif" }}>
+                    <Edit2 size={13} /> Edit
+                  </button>
+                  <button onClick={() => handleDelete(p._id)} disabled={deleting === p._id} style={{ width: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#ef4444' }}>
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
             </div>
           ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -619,35 +727,49 @@ function SlidesPanel({ slides, onRefresh, onToast }) {
         <div>
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: '#1a1410', marginBottom: 4 }}>Hero Slides</h2>
         </div>
-        <button onClick={openAdd} style={{ background: '#1a1410', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 22px', cursor: 'pointer' }}><Plus size={15} /> Add Slide</button>
+        <button onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#1a1410', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 22px', cursor: 'pointer', fontSize: 12, fontWeight: 500, fontFamily: "'Jost', sans-serif" }}>
+          <Plus size={15} /> Add Slide
+        </button>
       </div>
 
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', padding: 28, marginBottom: 28 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
-                <DropZone label="Media *" accept="image/*,video/*" preview={mediaPreview} onFile={handleMediaFile} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <Input label="Headline" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-                    <Input label="Sub-label" value={form.subtitle} onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))} />
-                </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+            <DropZone label="Media *" accept="image/*,video/*" preview={mediaPreview} onFile={handleMediaFile} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Input label="Headline" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+              <Input label="Sub-label" value={form.subtitle} onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))} />
             </div>
-            <button onClick={handleSubmit} disabled={loading} style={{ width: '100%', padding: '13px', background: '#1a1410', color: '#fff', borderRadius: 8 }}>{loading ? 'Uploading...' : 'Save Slide'}</button>
+          </div>
+          <button onClick={handleSubmit} disabled={loading} style={{ width: '100%', padding: '13px', background: loading ? '#c8b8a8' : '#1a1410', color: '#fff', border: 'none', borderRadius: 8, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Jost', sans-serif", fontSize: 13, fontWeight: 500 }}>
+            {loading ? 'Uploading...' : 'Save Slide'}
+          </button>
         </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-          {slides.map(slide => (
-            <div key={slide._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
-              <div style={{ height: 160, background: '#1a1410', position: 'relative' }}>
-                {slide.mediaType === 'video' ? <video src={`${BASE_URL}${slide.mediaUrl}`} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <img src={`${BASE_URL}${slide.mediaUrl}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-              </div>
-              <div style={{ padding: '12px 14px', display: 'flex', gap: 8 }}>
-                <button onClick={() => toggleActive(slide)} style={{ padding: '7px 12px', background: slide.active ? '#f0fdf4' : '#f5f5f5', borderRadius: 6 }}>{slide.active ? 'Live' : 'Hidden'}</button>
-                <button onClick={() => openEdit(slide)} style={{ flex: 1, background: '#f5f0ec', borderRadius: 6 }}>Edit</button>
-                <button onClick={() => handleDelete(slide._id)} style={{ color: '#ef4444' }}><Trash2 size={13} /></button>
-              </div>
+        {slides.map(slide => (
+          <div key={slide._id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #f0ece8', overflow: 'hidden' }}>
+            <div style={{ height: 160, background: '#1a1410', position: 'relative' }}>
+              {slide.mediaType === 'video'
+                ? <video src={`${BASE_URL}${slide.mediaUrl}`} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <img src={`${BASE_URL}${slide.mediaUrl}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              }
             </div>
-          ))}
+            <div style={{ padding: '12px 14px', display: 'flex', gap: 8 }}>
+              <button onClick={() => toggleActive(slide)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: slide.active ? '#f0fdf4' : '#f5f5f5', border: `1px solid ${slide.active ? '#bbf7d0' : '#e8e8e8'}`, borderRadius: 6, cursor: 'pointer', fontSize: 12, color: slide.active ? '#16a34a' : '#999', fontFamily: "'Jost', sans-serif" }}>
+                {slide.active ? <Eye size={12}/> : <EyeOff size={12}/>}
+                {slide.active ? 'Live' : 'Hidden'}
+              </button>
+              <button onClick={() => openEdit(slide)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, background: '#f5f0ec', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#6a5a4a', fontFamily: "'Jost', sans-serif" }}>
+                <Edit2 size={12}/> Edit
+              </button>
+              <button onClick={() => handleDelete(slide._id)} disabled={deleting === slide._id} style={{ width: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#ef4444' }}>
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
