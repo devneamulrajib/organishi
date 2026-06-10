@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// Import our smart API instance and the BASE_URL for images
-import API, { BASE_URL } from '../api'; 
+import API from '../api'; 
 
 const TINTS = [
   '#FFF4EC', '#ECFDF5', '#EEF2FF', '#FDF2F8',
@@ -25,38 +24,27 @@ function BgArt() {
       preserveAspectRatio="xMidYMid slice"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Soft blobs */}
       <circle cx="120"  cy="80"  r="160" fill="#F0EBE3" fillOpacity=".5" />
       <circle cx="1300" cy="240" r="130" fill="#E8F0FB" fillOpacity=".5" />
       <circle cx="700"  cy="310" r="110" fill="#EDF7EE" fillOpacity=".45" />
       <circle cx="1180" cy="50"  r="85"  fill="#FDF0F5" fillOpacity=".5" />
       <circle cx="200"  cy="260" r="75"  fill="#F5F0FD" fillOpacity=".5" />
       <circle cx="900"  cy="40"  r="65"  fill="#FFF9E6" fillOpacity=".55" />
-
-      {/* Dashed lines */}
       <line x1="280" y1="40"  x2="380" y2="130" stroke="#E2DDD8" strokeWidth="1" strokeDasharray="5 8" />
       <line x1="1060" y1="220" x2="1160" y2="140" stroke="#D8E4F0" strokeWidth="1" strokeDasharray="5 8" />
       <line x1="580" y1="20"  x2="660" y2="75"  stroke="#DDF0DE" strokeWidth="1" strokeDasharray="4 9" />
       <line x1="820" y1="280" x2="900" y2="220" stroke="#F0D8E8" strokeWidth="1" strokeDasharray="4 8" />
-
-      {/* Floating rectangles */}
       <rect x="1080" y="65"  width="52" height="52" rx="14" stroke="#E8D8F0" strokeWidth="1.3" fill="none" transform="rotate(18 1106 91)" />
       <rect x="180"  y="185" width="40" height="40" rx="11" stroke="#D8EAD8" strokeWidth="1.3" fill="none" transform="rotate(-12 200 205)" />
       <rect x="620"  y="40"  width="36" height="36" rx="10" stroke="#F0E8D8" strokeWidth="1.3" fill="none" transform="rotate(8 638 58)" />
-
-      {/* Circles outline */}
       <circle cx="860"  cy="70"  r="20" stroke="#F0D8E8" strokeWidth="1.3" fill="none" />
       <circle cx="460"  cy="255" r="15" stroke="#D8E8F8" strokeWidth="1.3" fill="none" />
       <circle cx="1250" cy="140" r="18" stroke="#DDE8D8" strokeWidth="1.3" fill="none" />
       <circle cx="340"  cy="130" r="12" stroke="#E8DDF8" strokeWidth="1.3" fill="none" />
-
-      {/* Curved strokes */}
       <path d="M 80 165 Q 130 145 175 168"   stroke="#E0DAD4" strokeWidth="1.3" fill="none" strokeLinecap="round" />
       <path d="M 1150 110 Q 1195 92 1230 114" stroke="#D5E3F5" strokeWidth="1.3" fill="none" strokeLinecap="round" />
       <path d="M 640 285 Q 680 268 720 287"   stroke="#D8EDD8" strokeWidth="1.3" fill="none" strokeLinecap="round" />
       <path d="M 940 200 Q 975 182 1010 202"  stroke="#F0D8D8" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-
-      {/* Small dots */}
       <circle cx="395"  cy="175" r="3.5" fill="#DDD8D2" />
       <circle cx="985"  cy="195" r="3.5" fill="#C8D8E8" />
       <circle cx="760"  cy="110" r="3"   fill="#E0D0E8" />
@@ -145,7 +133,7 @@ function CatItem({ cat, index, isHovered, onHover }) {
 
         {cat.imageUrl ? (
           <motion.img
-            src={`${BASE_URL}${cat.imageUrl}`}
+            src={cat.imageUrl}
             alt={cat.name}
             animate={{ scale: isHovered ? 1.12 : 1 }}
             transition={{ type: 'spring', stiffness: 320, damping: 22 }}
@@ -250,7 +238,6 @@ export default function FeaturedCategories() {
   const trackRef = useRef(null);
 
   useEffect(() => {
-    // Using smart API instance
     API.get('/categories')
       .then(r => {
         const list = Array.isArray(r.data) ? r.data : (r.data.products || []);
@@ -298,11 +285,8 @@ export default function FeaturedCategories() {
         position: 'relative',
         overflow: 'hidden',
       }}>
-
-        {/* Background art */}
         <BgArt />
 
-        {/* Content — centered */}
         <div style={{
           position: 'relative', zIndex: 2,
           display: 'flex',
@@ -310,12 +294,9 @@ export default function FeaturedCategories() {
           alignItems: 'center',
           gap: 28,
         }}>
-
-          {/* Row: arrow + tiles + arrow */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Arrow dir={-1} onClick={goLeft} visible={canLeft} />
 
-            {/* Tile track — fixed width for exactly 5 items */}
             <div
               ref={trackRef}
               style={{
@@ -343,7 +324,6 @@ export default function FeaturedCategories() {
                       onHover={setHoveredIdx}
                     />
                   ))}
-                  {/* Fill empty slots */}
                   {visible.length < VISIBLE && Array.from({ length: VISIBLE - visible.length }).map((_, i) => (
                     <div key={`empty-${i}`} style={{ width: 120, flexShrink: 0 }} />
                   ))}
@@ -354,11 +334,9 @@ export default function FeaturedCategories() {
             <Arrow dir={1} onClick={goRight} visible={canRight} />
           </div>
 
-          {/* Page dots */}
           {totalPages > 1 && (
             <Dots total={totalPages} current={page} />
           )}
-
         </div>
       </section>
     </>
