@@ -34,7 +34,7 @@ export default function Header() {
   useEffect(() => {
     API.get('/settings')
       .then(res => {
-        if (res.data?.logoUrl) setLogoUrl(`${BASE_URL}${res.data.logoUrl}`);
+        if (res.data?.logoUrl) setLogoUrl(res.data.logoUrl);
       })
       .catch(() => {});
   }, []);
